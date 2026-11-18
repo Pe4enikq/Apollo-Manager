@@ -1,0 +1,687 @@
+{
+  "SchemaVersion": "1.0",
+  "Devices": [
+    {
+      "SeriesId": "NW-E400",
+      "DisplayName": "Sony Network Walkman NW-E400 Series (Perfume Bottle OLED)",
+      "Generation": "Gen3_OmgV1",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV1",
+      "RequiresHardwareDvIdKey": true,
+      "ExpectedDvIdSegment": 296,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 507,
+          "UsbIdsName": "NW-E405 Network Walkman (0x054C:0x01FB)"
+        },
+        {
+          "VendorId": 1356,
+          "ProductId": 563,
+          "UsbIdsName": "ATRAC HDD PA (0x054C:0x0233)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-E403",
+          "NominalCapacityMb": 256,
+          "MinBytes": 180000000,
+          "MaxBytes": 300000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-E405",
+          "NominalCapacityMb": 512,
+          "MinBytes": 380000000,
+          "MaxBytes": 600000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-E407",
+          "NominalCapacityMb": 1024,
+          "MinBytes": 750000000,
+          "MaxBytes": 1200000000,
+          "HasFmTuner": false
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "B",
+          "MarketingName": "Midnight Black",
+          "PrimaryHex": "#161920",
+          "AccentHex": "#52A8FF",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "L",
+          "MarketingName": "Ocean Blue",
+          "PrimaryHex": "#0E2D59",
+          "AccentHex": "#4BB8FF",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "R",
+          "MarketingName": "Wine Red",
+          "PrimaryHex": "#6E1326",
+          "AccentHex": "#FF5B7F",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "G",
+          "MarketingName": "Olive Green",
+          "PrimaryHex": "#2C4B3B",
+          "AccentHex": "#75D9A3",
+          "OledGlowHex": "#66E6FF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "HardwareXor_0xFFFE"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 256],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        }
+      ],
+      "Screen": {
+        "LogicalWidth": 120,
+        "LogicalHeight": 36,
+        "PhysicalFrameWidth": 48,
+        "PhysicalFrameHeight": 120,
+        "BitsPerPixel": 1,
+        "BytesPerFrame": 720,
+        "Magic": "NwE400_0xEC01",
+        "ColumnStripeMangled": true,
+        "MaxFileSizeBytes": 45056,
+        "MaxUniqueBitmaps": 56,
+        "TargetFolders": ["SCREEN", "NWWM-SCR"]
+      },
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": ["SCREEN", "NWWM-SCR", "NWWM", "MP3FM"],
+        "RequiredTableMarkers": [],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV1",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline",
+        "L2.Custom.NwmEngine"
+      ],
+      "SupportedL3Modules": [
+        "L3.ScreensaverStudio"
+      ]
+    },
+    {
+      "SeriesId": "NW-E500",
+      "DisplayName": "Sony Network Walkman NW-E500 Series (Perfume Bottle FM OLED)",
+      "Generation": "Gen3_OmgV1",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV1",
+      "RequiresHardwareDvIdKey": true,
+      "ExpectedDvIdSegment": 296,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 507,
+          "UsbIdsName": "NW-E405 Network Walkman (0x054C:0x01FB)"
+        },
+        {
+          "VendorId": 1356,
+          "ProductId": 563,
+          "UsbIdsName": "ATRAC HDD PA (0x054C:0x0233)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-E503",
+          "NominalCapacityMb": 256,
+          "MinBytes": 180000000,
+          "MaxBytes": 300000000,
+          "HasFmTuner": true
+        },
+        {
+          "ModelCode": "NW-E505",
+          "NominalCapacityMb": 512,
+          "MinBytes": 380000000,
+          "MaxBytes": 600000000,
+          "HasFmTuner": true
+        },
+        {
+          "ModelCode": "NW-E507",
+          "NominalCapacityMb": 1024,
+          "MinBytes": 750000000,
+          "MaxBytes": 1200000000,
+          "HasFmTuner": true
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "L",
+          "MarketingName": "Azure Blue",
+          "PrimaryHex": "#12427C",
+          "AccentHex": "#5EC8FF",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "S",
+          "MarketingName": "Sparkling Silver",
+          "PrimaryHex": "#B9C3CE",
+          "AccentHex": "#4AA8E8",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "P",
+          "MarketingName": "Sakura Pink",
+          "PrimaryHex": "#B84D76",
+          "AccentHex": "#FF8CB8",
+          "OledGlowHex": "#66E6FF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "HardwareXor_0xFFFE"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 256],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        }
+      ],
+      "Screen": {
+        "LogicalWidth": 120,
+        "LogicalHeight": 36,
+        "PhysicalFrameWidth": 48,
+        "PhysicalFrameHeight": 120,
+        "BitsPerPixel": 1,
+        "BytesPerFrame": 720,
+        "Magic": "NwE400_0xEC01",
+        "ColumnStripeMangled": true,
+        "MaxFileSizeBytes": 45056,
+        "MaxUniqueBitmaps": 56,
+        "TargetFolders": ["SCREEN", "NWWM-SCR"]
+      },
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": ["SCREEN", "NWWM-SCR", "NWWM", "MP3FM"],
+        "RequiredTableMarkers": [],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV1",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline",
+        "L2.Custom.NwmEngine"
+      ],
+      "SupportedL3Modules": [
+        "L3.ScreensaverStudio"
+      ]
+    },
+    {
+      "SeriesId": "NW-HD3-HD5",
+      "DisplayName": "Sony Network Walkman NW-HD3 / NW-HD5 HDD Series",
+      "Generation": "Gen3_OmgV1",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV1",
+      "RequiresHardwareDvIdKey": true,
+      "ExpectedDvIdSegment": null,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 537,
+          "UsbIdsName": "Net MD / NW-HD3 (0x054C:0x0219)"
+        },
+        {
+          "VendorId": 1356,
+          "ProductId": 579,
+          "UsbIdsName": "MicroVault / NW-HD5 (0x054C:0x0243)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-HD3",
+          "NominalCapacityMb": 20480,
+          "MinBytes": 17000000000,
+          "MaxBytes": 22000000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-HD5H",
+          "NominalCapacityMb": 30720,
+          "MinBytes": 25000000000,
+          "MaxBytes": 33000000000,
+          "HasFmTuner": false
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "S",
+          "MarketingName": "Silver",
+          "PrimaryHex": "#BCC3CC",
+          "AccentHex": "#3A88E0",
+          "OledGlowHex": "#D4EAFF"
+        },
+        {
+          "SuffixCode": "B",
+          "MarketingName": "Black",
+          "PrimaryHex": "#1B1E24",
+          "AccentHex": "#4B9EFF",
+          "OledGlowHex": "#D4EAFF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [32000, 44100, 48000],
+          "SupportsVbr": true,
+          "RequiredEncryption": "HardwareXor_0xFFFE"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 256],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "MagicGateLsi_0x0001"
+        }
+      ],
+      "Screen": null,
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": ["MP3FM"],
+        "RequiredTableMarkers": [],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV1",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline"
+      ],
+      "SupportedL3Modules": []
+    },
+    {
+      "SeriesId": "NW-A600",
+      "DisplayName": "Sony Network Walkman NW-A600 Series (Artist Link OLED)",
+      "Generation": "Gen4_OmgV2_Connect",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV2",
+      "RequiresHardwareDvIdKey": false,
+      "ExpectedDvIdSegment": null,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 636,
+          "UsbIdsName": "NETWORK WALKMAN (0x054C:0x027C)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-A605",
+          "NominalCapacityMb": 512,
+          "MinBytes": 380000000,
+          "MaxBytes": 600000000,
+          "HasFmTuner": true
+        },
+        {
+          "ModelCode": "NW-A607",
+          "NominalCapacityMb": 1024,
+          "MinBytes": 750000000,
+          "MaxBytes": 1200000000,
+          "HasFmTuner": true
+        },
+        {
+          "ModelCode": "NW-A608",
+          "NominalCapacityMb": 2048,
+          "MinBytes": 1600000000,
+          "MaxBytes": 2400000000,
+          "HasFmTuner": true
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "L",
+          "MarketingName": "Blue",
+          "PrimaryHex": "#144D92",
+          "AccentHex": "#5EC8FF",
+          "OledGlowHex": "#66E6FF"
+        },
+        {
+          "SuffixCode": "V",
+          "MarketingName": "Violet",
+          "PrimaryHex": "#4B2B72",
+          "AccentHex": "#B688FF",
+          "OledGlowHex": "#66E6FF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        }
+      ],
+      "Screen": {
+        "LogicalWidth": 120,
+        "LogicalHeight": 36,
+        "PhysicalFrameWidth": 48,
+        "PhysicalFrameHeight": 120,
+        "BitsPerPixel": 1,
+        "BytesPerFrame": 720,
+        "Magic": "NwE400_0xEC01",
+        "ColumnStripeMangled": true,
+        "MaxFileSizeBytes": 45056,
+        "MaxUniqueBitmaps": 56,
+        "TargetFolders": ["SCREEN", "NWWM-SCR"]
+      },
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": ["SCREEN", "NWWM-SCR"],
+        "RequiredTableMarkers": ["01TREE05.DAT"],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV2",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline",
+        "L2.Custom.NwmEngine"
+      ],
+      "SupportedL3Modules": [
+        "L3.ScreensaverStudio"
+      ]
+    },
+    {
+      "SeriesId": "NW-A1000-A3000",
+      "DisplayName": "Sony Network Walkman NW-A1000 / NW-A1200 / NW-A3000 Series",
+      "Generation": "Gen4_OmgV2_Connect",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV2",
+      "RequiresHardwareDvIdKey": false,
+      "ExpectedDvIdSegment": null,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 617,
+          "UsbIdsName": "HDD WALKMAN (0x054C:0x0269)"
+        },
+        {
+          "VendorId": 1356,
+          "ProductId": 636,
+          "UsbIdsName": "NETWORK WALKMAN (0x054C:0x027C)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-A1000",
+          "NominalCapacityMb": 6144,
+          "MinBytes": 5000000000,
+          "MaxBytes": 6800000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-A1200",
+          "NominalCapacityMb": 8192,
+          "MinBytes": 6800000001,
+          "MaxBytes": 9000000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-A3000",
+          "NominalCapacityMb": 20480,
+          "MinBytes": 17000000000,
+          "MaxBytes": 22000000000,
+          "HasFmTuner": false
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "V",
+          "MarketingName": "Violet",
+          "PrimaryHex": "#4B2B72",
+          "AccentHex": "#B688FF",
+          "OledGlowHex": "#D9F2FF"
+        },
+        {
+          "SuffixCode": "S",
+          "MarketingName": "Silver",
+          "PrimaryHex": "#B9C3CE",
+          "AccentHex": "#5EC8FF",
+          "OledGlowHex": "#D9F2FF"
+        },
+        {
+          "SuffixCode": "P",
+          "MarketingName": "Pink",
+          "PrimaryHex": "#B84D76",
+          "AccentHex": "#FF8CB8",
+          "OledGlowHex": "#D9F2FF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        }
+      ],
+      "Screen": {
+        "LogicalWidth": 80,
+        "LogicalHeight": 80,
+        "PhysicalFrameWidth": 80,
+        "PhysicalFrameHeight": 80,
+        "BitsPerPixel": 2,
+        "BytesPerFrame": 1600,
+        "Magic": "NwA1000_0xD301",
+        "ColumnStripeMangled": false,
+        "MaxFileSizeBytes": 65536,
+        "MaxUniqueBitmaps": 40,
+        "TargetFolders": ["SCREEN"]
+      },
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": ["SCREEN"],
+        "RequiredTableMarkers": ["01TREE05.DAT", "03GINF22.DAT"],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV2",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline",
+        "L2.Custom.NwmEngine"
+      ],
+      "SupportedL3Modules": [
+        "L3.ScreensaverStudio"
+      ]
+    },
+    {
+      "SeriesId": "NW-E000",
+      "DisplayName": "Sony Network Walkman NW-E002 / NW-E003 / NW-E005 USB Stick Series",
+      "Generation": "Gen5_FlashStick",
+      "Transport": "MassStorage",
+      "DatabaseFormat": "OmgV2",
+      "RequiresHardwareDvIdKey": false,
+      "ExpectedDvIdSegment": null,
+      "UsbIds": [
+        {
+          "VendorId": 1356,
+          "ProductId": 636,
+          "UsbIdsName": "NETWORK WALKMAN (0x054C:0x027C)"
+        }
+      ],
+      "CapacityTiers": [
+        {
+          "ModelCode": "NW-E002",
+          "NominalCapacityMb": 512,
+          "MinBytes": 380000000,
+          "MaxBytes": 600000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-E003",
+          "NominalCapacityMb": 1024,
+          "MinBytes": 750000000,
+          "MaxBytes": 1200000000,
+          "HasFmTuner": false
+        },
+        {
+          "ModelCode": "NW-E005",
+          "NominalCapacityMb": 2048,
+          "MinBytes": 1600000000,
+          "MaxBytes": 2400000000,
+          "HasFmTuner": false
+        }
+      ],
+      "ColorVariants": [
+        {
+          "SuffixCode": "B",
+          "MarketingName": "Black",
+          "PrimaryHex": "#1A1B1F",
+          "AccentHex": "#5EC8FF",
+          "OledGlowHex": "#A0EFFF"
+        },
+        {
+          "SuffixCode": "V",
+          "MarketingName": "Violet",
+          "PrimaryHex": "#58347A",
+          "AccentHex": "#C89CFF",
+          "OledGlowHex": "#A0EFFF"
+        }
+      ],
+      "Codecs": [
+        {
+          "Codec": "Mp3",
+          "SupportedBitratesKbps": [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3",
+          "SupportedBitratesKbps": [66, 105, 132],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Atrac3Plus",
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": false,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Wma",
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        },
+        {
+          "Codec": "Aac",
+          "SupportedBitratesKbps": [64, 96, 128, 192, 256, 320],
+          "AllowedSampleRatesHz": [44100],
+          "SupportsVbr": true,
+          "RequiredEncryption": "Unprotected_0xFFFF"
+        }
+      ],
+      "Screen": {
+        "LogicalWidth": 108,
+        "LogicalHeight": 16,
+        "PhysicalFrameWidth": 16,
+        "PhysicalFrameHeight": 108,
+        "BitsPerPixel": 1,
+        "BytesPerFrame": 216,
+        "Magic": "NwE002_0xEC02",
+        "ColumnStripeMangled": false,
+        "MaxFileSizeBytes": 32768,
+        "MaxUniqueBitmaps": 40,
+        "TargetFolders": ["SCREEN"]
+      },
+      "Markers": {
+        "RequiredFolders": ["OMGAUDIO"],
+        "OptionalFolders": [],
+        "RequiredTableMarkers": ["01TREE05.DAT"],
+        "ExcludedFolders": ["HMDHIFI"]
+      },
+      "RequiredL2Modules": [
+        "L2.Transport.Msc",
+        "L2.Database.OmgV2",
+        "L2.Crypto.OpenMG",
+        "L2.Codec.Pipeline",
+        "L2.Custom.NwmEngine"
+      ],
+      "SupportedL3Modules": [
+        "L3.ScreensaverStudio"
+      ]
+    }
+  ]
+}

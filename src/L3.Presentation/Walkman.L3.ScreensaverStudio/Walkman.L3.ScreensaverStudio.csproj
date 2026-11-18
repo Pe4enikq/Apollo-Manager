@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L3.ScreensaverStudio</AssemblyName>
+    <RootNamespace>Walkman.L3.ScreensaverStudio</RootNamespace>
+    <Description>L3 Visual 1-bit .nwm Screensaver Editor &amp; OLED Simulator (implemented in M4).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+  </ItemGroup>
+</Project>

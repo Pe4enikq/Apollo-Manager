@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L2.Database.OmgV1</AssemblyName>
+    <RootNamespace>Walkman.L2.Database.OmgV1</RootNamespace>
+    <Description>L2 Clean-Room Big-Endian OMGAUDIO v1 Database Engine (implemented in M2).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.Contracts</AssemblyName>
+    <RootNamespace>Walkman.Contracts</RootNamespace>
+    <Description>Dependency-free contracts, DTOs, events, and plugin interfaces for Apollo Manager.</Description>
+  </PropertyGroup>
+</Project>

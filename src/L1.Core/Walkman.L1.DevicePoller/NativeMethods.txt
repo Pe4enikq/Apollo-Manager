@@ -1,0 +1,14 @@
+GetVolumeInformationW
+GetVolumeNameForVolumeMountPointW
+GetDriveTypeW
+CreateFileW
+DeviceIoControl
+RegisterDeviceNotificationW
+UnregisterDeviceNotification
+DEV_BROADCAST_DEVICEINTERFACE_W
+DEV_BROADCAST_VOLUME
+DBT_DEVICEARRIVAL
+DBT_DEVICEREMOVECOMPLETE
+DBT_DEVNODES_CHANGED
+IOCTL_SCSI_PASS_THROUGH
+SCSI_PASS_THROUGH

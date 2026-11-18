@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L1.FileManager</AssemblyName>
+    <RootNamespace>Walkman.L1.FileManager</RootNamespace>
+    <Description>L1 Core Local Library Index, Device VFS &amp; Bounded Transfer Queue (implemented in M1/M3).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+    <ProjectReference Include="..\Walkman.L1.Orchestrator\Walkman.L1.Orchestrator.csproj" />
+  </ItemGroup>
+</Project>

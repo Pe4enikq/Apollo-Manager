@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Walkman.M0.Tests</AssemblyName>
+    <RootNamespace>Walkman.M0.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Walkman.Contracts\Walkman.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.Orchestrator\Walkman.L1.Orchestrator.csproj" />
+    <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.DevicePoller\Walkman.L1.DevicePoller.csproj" />
+    <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.FileManager\Walkman.L1.FileManager.csproj" />
+
+    <!-- Build-order dependencies only; plugin DLLs are loaded dynamically via collectible PluginLoadContext. -->
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Transport.Msc\Walkman.L2.Transport.Msc.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Database.OmgV1\Walkman.L2.Database.OmgV1.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Crypto.OpenMG\Walkman.L2.Crypto.OpenMG.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Codec.Pipeline\Walkman.L2.Codec.Pipeline.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Custom.NwmEngine\Walkman.L2.Custom.NwmEngine.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Telemetry.Dumper\Walkman.L2.Telemetry.Dumper.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L3.Presentation\Walkman.L3.ScreensaverStudio\Walkman.L3.ScreensaverStudio.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\L3.Presentation\Walkman.L3.DumpWizard\Walkman.L3.DumpWizard.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

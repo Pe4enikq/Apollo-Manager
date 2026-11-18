@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L3.DumpWizard</AssemblyName>
+    <RootNamespace>Walkman.L3.DumpWizard</RootNamespace>
+    <Description>L3 Guided Privacy-Safe Diagnostic Dump Wizard (implemented in M1/M4).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L2.Codec.Pipeline</AssemblyName>
+    <RootNamespace>Walkman.L2.Codec.Pipeline</RootNamespace>
+    <Description>L2 Bidirectional Audio Codec &amp; Transcode Pipeline (implemented in M3).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+  </ItemGroup>
+</Project>

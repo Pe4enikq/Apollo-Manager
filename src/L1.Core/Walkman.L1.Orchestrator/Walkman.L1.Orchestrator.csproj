@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Walkman.L1.Orchestrator</AssemblyName>
+    <RootNamespace>Walkman.L1.Orchestrator</RootNamespace>
+    <Description>L1 Core Orchestrator: collectible AssemblyLoadContext loader, zero-dependency event bus, mediator, and device manifest registry.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Walkman.M0.Tests" />
+  </ItemGroup>
+</Project>
