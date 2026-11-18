@@ -1,0 +1,47 @@
+# ==============================================================================
+# Apollo Manager — .gitattributes
+# ==============================================================================
+
+# Auto detect text files and normalize to LF
+* text=auto eol=lf
+
+# C# / .NET / Avalonia XAML / Config files
+*.cs     text diff=csharp eol=lf
+*.csproj text eol=lf
+*.sln    text eol=crlf
+*.slnx   text eol=lf
+*.props  text eol=lf
+*.targets text eol=lf
+*.axaml  text eol=lf
+*.xaml   text eol=lf
+*.xml    text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.ksy    text eol=lf
+
+# Windows batch / PowerShell scripts
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# Binary formats (prevent line-ending corruption)
+*.dat    binary
+*.DAT    binary
+*.oma    binary
+*.OMA    binary
+*.omg    binary
+*.OMG    binary
+*.nwm    binary
+*.NWM    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.webp   binary
+*.ico    binary
+*.dll    binary
+*.exe    binary
+*.zip    binary
+*.ase    binary
+*.aseprite binary

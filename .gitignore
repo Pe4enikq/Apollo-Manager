@@ -1,0 +1,82 @@
+# ==============================================================================
+# Apollo Manager — .gitignore
+# ==============================================================================
+
+# .NET / C# Build Artifacts
+bin/
+obj/
+out/
+publish/
+artifacts/
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.nupkg
+*.snupkg
+*.appx
+*.msix
+*.cache
+project.lock.json
+project.fragment.lock.json
+*.nuget.props
+*.nuget.targets
+
+# Note: Keep explicitly tracked documentation or license markers inside tools/codecs if added later
+!tools/**/COPYING*
+!tools/**/LICENSE*
+!codecs/**/COPYING*
+!codecs/**/LICENSE*
+
+# Visual Studio / JetBrains Rider / VS Code
+.vs/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+*.swp
+*.swo
+*~
+
+# Test Results & Coverage
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
+
+# Runtime Staging, Device Dumps & User Media (never commit copyrighted audio or device dumps)
+dumps/
+staging/
+*.tmp
+*.bak
+*.log
+*.zip
+*.oma
+*.omg
+*.DAT
+*.dat
+*.nwm
+*.mp3
+*.flac
+*.wav
+*.m4a
+*.ogg
+*.opus
+*.wma
+
+# OS Generated Metadata
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+*.lnk
