@@ -8,62 +8,55 @@ This roadmap tracks execution from repository setup and offline knowledge gather
 
 | Milestone | Title | Status | Focus |
 | :--- | :--- | :--- | :--- |
-| **M0** | Repository Curation & Architectural Spine | Active | Git setup, `Walkman.Contracts`, solution skeleton, dependency governance |
-| **M0.5** | Local Knowledge Base & Reference Asset Dump | Next | Local archive of manuals, SonicStage detection artifacts, OSS reference code, and `.nwm` assets |
-| **M1** | Hardware Discovery, Model ID & Transport Layer | Planned | `L1.DevicePoller` (`CsWin32`), SonicStage/manual detection tables, `L2.Transport.Msc`, `L2.Telemetry.Dumper` |
-| **M2** | `OMGAUDIO` v1 Database Engine & OpenMG Crypto | Planned | Clean-room Big-Endian `Span<byte>` `.DAT` reader/writer + dual `ea3`/`EA3` & `DvId.dat` handling |
+| **M0** | Repository Curation & Architectural Spine | **Complete** | Git setup, zero-dep `Walkman.Contracts`, custom L1 `Orchestrator`, dependency & ALC tests |
+| **M0.5** | Local Knowledge Base & Reference Asset Dump | **Complete** | Local archive of 50 Sony manuals, SonicStage installers, OSS refs, and clean-room `SPEC_*.md` |
+| **M1** | Hardware Discovery, Model ID & Transport Layer | **Complete** | `L1.DevicePoller` (`CsWin32` + 3-tier `DvID`), `L2.Transport.Msc`, `L1.FileManager` VFS mount, `L2.Telemetry.Dumper` |
+| **M2** | `OMGAUDIO` v1 Database Engine & OpenMG Crypto | **Active (Next)** | Clean-room Big-Endian `Span<byte>` `.DAT` reader/writer + synchsafe `ea3`/`EA3` & `0xFFFE` `DvID` XOR |
 | **M3** | Bidirectional Audio Codec & Sync Pipeline | Planned | `L2.Codec.Pipeline` + `L1.FileManager` (MP3 pass-through, LAME, `atracdenc` ATRAC3, `vgmstream` decode) |
-| **M4** | Visual `.nwm` Screensaver Studio & MVP AppShell | Planned | `L2.Custom.NwmEngine`, `L3.ScreensaverStudio` (`128×36` OLED editor/preview), `L3.AppShell` dual-pane UI |
+| **M4** | Visual `.nwm` Screensaver Studio & MVP AppShell | Planned | `L2.Custom.NwmEngine` (`0xEC01` `48×120`), `L3.ScreensaverStudio` (`120×36` OLED preview), `L3.AppShell` UI |
 | **Phase 2–4** | Multi-Generation Expansion & Native ATRAC3plus | Post-MVP | `OmgV2` (`NW-HD`/`NW-A`), color cover art & lyrics (`NW-S700`/`A800`), Legacy USB/CD (`D-NE`), native ATRAC3plus encoder |
 
 ---
 
 ## Detailed Milestones (To First MVP)
 
-### M0: Repository Curation & Architectural Spine
+### M0: Repository Curation & Architectural Spine *(Complete)*
 - **Goal:** Establish a clean repository, strict L1/L2/L3 isolation rules, and compiling `.NET 8/9` solution skeleton before feature code is written.
 - **Deliverables:**
-  - Initialized Git repository inside `codebase/` with `.gitignore`, `.gitattributes`, `README.md`, `ROADMAP.md`, and `docs/ARCHITECTURE_AND_AUDIT.md`.
-  - Solution skeleton (`WalkmanUtility.sln`) with `Walkman.Contracts` (DTOs, `DeviceProfile`, `ITransportDriver`, `IDatabaseEngine`, `ICodecService`, `IScreensaverPacker`).
-  - `L1.Orchestrator` featuring `AssemblyLoadContext` dynamic plugin loading and MIT Mediator/Messenger (`CommunityToolkit.Mvvm` `StrongReferenceMessenger` or `martinothamar/Mediator`).
+  - Initialized Git repository inside `codebase/` with `.gitignore`, `.gitattributes`, `Directory.Build.props`, `README.md`, `ROADMAP.md`, and `docs/ARCHITECTURE_AND_AUDIT.md`.
+  - Solution skeleton (`WalkmanUtility.sln`, 14 projects) with zero-dependency `Walkman.Contracts` (`DeviceProfile`, `ITransportDriver`, `IDatabaseEngine`, `IOpenMgCryptoService`, `ICodecService`, `IScreensaverPacker`, `ITelemetryDumper`).
+  - Zero-NuGet `Walkman.L1.Orchestrator` featuring collectible `AssemblyLoadContext` dynamic plugin loading (`PluginLoadContext`), custom lock-snapshot `WalkmanEventBus` & `WalkmanMediator`, and multi-factor `DeviceManifestRegistry`.
   - License isolation folders (`/tools/`, `/codecs/`, `/manifests/`).
 
-### M0.5: Local Knowledge Base, Reference Code & Asset Dump
+### M0.5: Local Knowledge Base, Reference Code & Asset Dump *(Complete)*
 - **Goal:** Collect, download, and organize all technical references from the Master Reference Library onto local disk (**outside `codebase/`**, in the workspace's reference/assets folders) so coding agents and developers have verified offline specifications and fixtures.
 - **Deliverables:**
-  - **Author's `.nwm` Reference:** Clone `Pe4enikq/walkman-E400-500-custom-screensavers` and verify `.nwm` format test vectors.
-  - **Original Manuals & Service Manuals:** Download Sony Operating Instructions & Level 2/3 Service Manuals (Sony Support, Internet Archive, Electrotanya, ManualsLib) for target generations (`NW-E403/405/407`, `NW-E50x`, `NW-HD1..5`, `NW-A60x`, `NW-A1000/3000`, `NW-S70x`, `NW-A80x`).
-  - **SonicStage / Hardware Identification Artifacts:** Inspect original SonicStage installation tables, INF/INI/XML/DLL device mappings, and Linux USB IDs (`0x054C`) to extract exact hardware detection rules and capability flags.
-  - **Clean-Room Spec References (Read-Only Reference Archive):**
-    - Waider's `OMGAUDIO` documentation & `FFmpeg` `omadec.c` / `omaenc.c` byte-offset references.
-    - `JSymphonic`, `NW-E00X MP3 File Manager`, and `linux-minidisc` strictly as offline `[SPEC-REFERENCE ONLY]` archives (never copied directly into C#).
-    - `cybercase/netmd-js` (MIT) and `vgmstream` `oma.c` (ISC) references.
-  - **Device Test Fixtures:** Real `OMGAUDIO` `.DAT` dumps (and sample `.oma` headers) placed into local test fixtures (excluded from Git).
+  - **Author's `.nwm` Reference:** Cloned `Pe4enikq/walkman-E400-500-custom-screensavers` and documented `.nwm` `0xEC01` (`48×120` 3-block mangled) test vectors in `for agents/SPEC_NWM_SCREENSAVER.md`.
+  - **Original Manuals & Service Manuals:** Downloaded 48 Sony user manuals plus official Service Manuals (`NW-E403-SW.pdf`, `NW-A3000-SW.pdf`) and OpenMG/SonicStage installers (`extra apps/installers/`).
+  - **Clean-Room Spec References & Tools:** Archived GPL references strictly in `misc/spec-only-gpl-refs/` `[SPEC-REFERENCE ONLY]`, MIT/ISC refs (`netmd-js`, `vgmstream`), `usb.ids` (`0x054C`), `atracdenc 0.2.3` / `vgmstream r2168`, and authored 4 clean-room specs in `for agents/`.
 
-### M1: Hardware Discovery, Model Identification & Transport Layer
+### M1: Hardware Discovery, Model Identification & Transport Layer *(Complete)*
 - **Goal:** Reliably detect connected players, identify the exact Sony model, mount its storage safely, and capture diagnostics for unknown hardware.
 - **Deliverables:**
-  - `L1.DevicePoller` using `Microsoft.Windows.CsWin32` (`RegisterDeviceNotification` / `WM_DEVICECHANGE` + `SetupAPI`) + `DriveInfo.GetDrives()` (<5 ms hot-plug detection; no WMI).
-  - **Device Identification Pipeline:**
-    1. Primary identification using hardware tables/rules extracted from Sony manuals and original SonicStage device manifests.
-    2. Fallback multi-factor fingerprinting (`0x054C` `VID:PID` + USB `iProduct` string + FAT partition size + `OMGAUDIO`/`SCREEN`/`DvId.dat` markers) against `manifests/devices.json`.
-  - `L2.Transport.Msc`: Mass Storage VFS driver enforcing uppercase ASCII 8.3 paths (`OMGAUDIO`, `SCREEN`), safe temp staging, and `FileStream.Flush(flushToDisk: true)`.
-  - `L2.Telemetry.Dumper` + `L3.DumpWizard`: Read-only diagnostic `.zip` collector (~50 KB: USB descriptors, directory listing, `.DAT` files, first 64 bytes of `.oma` headers — zero copyrighted audio).
-- **Verification Gate:** Connecting an `NW-E403` (or mounting a byte-accurate virtual FAT image) identifies the exact model profile in <100 ms and mounts its VFS tree.
+  - `L1.DevicePoller` using `Microsoft.Windows.CsWin32` (`0.3.106` MIT: `RegisterDeviceNotification` / `WM_DEVICECHANGE` + `SetupAPI` `VID_054C` + `GetVolumeInformationW`), plus 3-tier read-only hardware `DvID` extraction (`DvID.DAT` -> zero-elevation `0xFFFE` MP3 `.OMA` Xing/LAME known-plaintext recovery -> elevated `IOCTL_SCSI_PASS_THROUGH` `0xA4`).
+  - **Verified Live Hardware Findings (`NW-E403`):** Resolved `NW-E403` (`0x054C:0x01FB`) with `DvID` key `0x09278120` (`72.9 ms` scan), confirmed real players store `NWWM/`, `NWWM-SCR/fading_wind.nwm`, empty playlist slot `01TREE22.DAT`/`03GINF22.DAT` tables (refined `DeviceManifestRegistry` so only `01TREE05`/`03GINF05` exclude `OmgV1`), and a dynamic `0x400`-byte `ea3` block.
+  - `L2.Transport.Msc`: Mass Storage VFS driver enforcing volume serial binding, anti-traversal guards, uppercase ASCII 8.3 paths on writes (`OMGAUDIO`, `SCREEN`), atomic temp staging, and `FileStream.Flush(flushToDisk: true)`.
+  - `L2.Telemetry.Dumper` + `L3.DumpWizard`: Sanitized ~10.3 KB diagnostic `.zip` export (verified `NW-E403_Diagnostic_Dump.zip` at `10,539 B`, zero full audio payloads).
+- **PM Handoff / M2 Polish Items:** Warm JIT before timing assertion in `DevicePoller_IdentifiesBackedUpNwE403Volume_Under100ms_AndMountsVfs` (cold first-run took `248 ms`; subsequent run passed in `141 ms`), and correlate USB PnP device paths per volume in `ScanConnectedDevices` when multiple Sony USB devices are attached.
 
-### M2: `OMGAUDIO` v1 Database Engine & OpenMG Crypto
+### M2: `OMGAUDIO` v1 Database Engine & OpenMG Crypto *(Active — Next)*
 - **Goal:** Full clean-room read, incremental update, and from-scratch rebuild compatibility for `OMGAUDIO` v1 (`NW-E400/E500`, `NW-E100..300`, `NW-HD1..5`).
 - **Deliverables:**
   - `L2.Database.OmgV1`: Clean-room `Span<byte>` / `BinaryPrimitives` Big-Endian parser & serializer for:
     - `00GTRLST.DAT` (global table registry)
-    - `01TREE01.DAT` – `01TREE04.DAT` (navigation trees)
+    - `01TREE01.DAT` – `01TREE04.DAT` & `01TREE22.DAT` (navigation & playlist slot `0x22` trees)
     - `02TREINF.DAT` (tree node metadata)
-    - `03GINF01.DAT` – `03GINF04.DAT` (group/album details)
+    - `03GINF01.DAT` – `03GINF04.DAT` & `03GINF22.DAT` (group/album/playlist slot `0x22` details)
     - `04CNTINF.DAT` (content/track index, codec, bitrate, duration, frame count, `UTF-16BE` / `Shift-JIS` tags)
     - `05CIDLST.DAT` (Content ID list)
-  - `L2.Crypto.OpenMG`: Dual-header `.oma` builder/parser (`ea3` ID3v2-like block with mandatory `0x02` `UTF-16BE` encoding + 96-byte `EA3` descriptor supporting `0xFFFE` keyless mode and `DvId.dat` XOR/DES key masking).
-  - Atomic batch commit and full **Database Rebuild from Scratch** mode.
-- **Verification Gate:** Round-trip binary verification against real `OMGAUDIO` dumps and hardware playback test confirming zero `NO DATA` or `FORMAT ERROR` failures.
+  - `L2.Crypto.OpenMG`: Dual-header `.oma` builder/parser honoring dynamic synchsafe `ea3` sizes (`0x400` observed on `NW-E403` / `0xC00` typical) with mandatory `0x02` `UTF-16BE` frames + 96-byte `EA3` descriptor supporting Gen 3 `0xFFFE` 4-byte `DvID` XOR scrambling (`((0x2465 + trackId * 0x5296E435) & 0xFFFFFFFF) ^ deviceKey`), `0x0001` MagicGate LSI DRM (`30GRCT/`), and Gen 4+ `0xFFFF` keyless mode.
+  - Atomic batch commit and full **Database Rebuild from Scratch** verified against `test folder/NW-E403_Live_Backup/` before touching physical hardware.
+- **Verification Gate:** Byte-exact round-trip binary verification against `NW-E403_Live_Backup` and hardware playback test confirming zero `NO DATA` or `FORMAT ERROR` failures.
 
 ### M3: Bidirectional Audio Codec Pipeline & File Interchange
 - **Goal:** 100% reliable audio conversion and bidirectional transfer (`PC <-> Player` and `Player <-> Player`) with metadata preservation.
@@ -89,9 +82,9 @@ This roadmap tracks execution from repository setup and offline knowledge gather
 - **Deliverables:**
   - `L2.Custom.NwmEngine`: C# port of `Pe4enikq/walkman-E400-500-custom-screensavers` binary packer/unpacker (1-bit frames, frame rate header, loop flags).
   - `L3.ScreensaverStudio` (Prototype):
-    - Native Avalonia `WriteableBitmap` / `SKCanvas` `128×36` (and `120×36`) 1-bit pixel grid editor with drawing tools, frame timeline, and onion-skinning.
+    - Native Avalonia `WriteableBitmap` / `SKCanvas` logical `120×36` OLED (packed `48×120` 3-block column-stripe `.nwm`, `0xEC01`) 1-bit pixel grid editor with drawing tools, frame timeline, and onion-skinning.
     - Importer for GIF (`SkiaSharp` `SKCodec`), PNG sequences (`StbImageSharp`), and `.ase`/`.aseprite` (`AsepriteDotNet`) with 1-bit Atkinson, Floyd-Steinberg, Sierra, and Bayer dithering (`Cyotek.Drawing.Imaging.ColorReduction`).
-    - Real-time simulated OLED screen preview (cyan/amber phosphor glow) + direct deployment to player `SCREEN/`.
+    - Real-time simulated OLED screen preview (cyan/amber phosphor glow) + direct deployment to player `SCREEN/` & `NWWM-SCR/`.
   - `L3.AppShell`: Avalonia dual-pane (Local Library + Device VFS) workspace, transfer queue gauge, device status bar, and base 2007 Frutiger Aero theme (`SkiaSharp`).
 
 ---

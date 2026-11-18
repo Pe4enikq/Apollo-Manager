@@ -11,7 +11,7 @@ This document reconciles the **Global Software Architecture Specification (L1–
 | Layer / Responsibility | Superseded Draft Reference | Approved Production Stack (License) | Notes & Enforcement |
 | :--- | :--- | :--- | :--- |
 | **Runtime & UI** | C# 12 / `.NET 8/9`, Avalonia UI + SkiaSharp | **C# 12 / `.NET 8/9`, Avalonia UI + SkiaSharp** (MIT) | Use `Span<byte>`, `Memory<byte>`, `BinaryPrimitives`, and `AssemblyLoadContext`. |
-| **L1 Mediator / Event Bus** | Generic `MediatR` | **`CommunityToolkit.Mvvm` (`StrongReferenceMessenger`, MIT)** or **`martinothamar/Mediator` (MIT)** | **Forbidden:** `MediatR` v13+ (commercial license). |
+| **L1 Mediator / Event Bus** | Generic `MediatR` | **Zero-NuGet custom `WalkmanEventBus` & `WalkmanMediator`** (in `L1.Orchestrator`), plus **`CommunityToolkit.Mvvm`** (`ObservableObject` / `RelayCommand`, MIT) for `L3` ViewModels | **Forbidden:** `MediatR` v13+ (commercial license). Keeping `Walkman.Contracts` and `L1.Orchestrator` zero-NuGet is enforced by automated architecture tests. |
 | **USB Hot-Plug Detection** | Windows WMI (`System.Management`) | **`Microsoft.Windows.CsWin32` (MIT)** (`RegisterDeviceNotification` / `WM_DEVICECHANGE` + `SetupAPI`) + `DriveInfo.GetDrives()` | **Forbidden:** WMI polling in runtime code (500–2000 ms latency & STA UI thread deadlocks). |
 | **Audio Metadata & Tags** | `mono/taglib-sharp` (LGPL-2.1) | **`ATL.NET` (`Zeugma440/atldotnet`, MIT)** + custom clean-room `Span<byte>` `ea3` header builder | **Forbidden:** Inline/modified `TagLibSharp`. |
 | **Audio Input Decoding** | Bundled `ffmpeg.exe` + `FFMpegCore` | **Windows:** `NAudio` `MediaFoundationReader` (MIT)<br>**Cross-Platform:** `dr_libs` / `miniaudio` (Public Domain / MIT-0), `libFLAC` (BSD-3), `macosforge/alac` (Apache-2.0), `NLayer` (MIT), `NVorbis` (MIT), `Concentus` (BSD-3)<br>**`.OMA` Decode:** `vgmstream` (ISC) | **Forbidden:** Bundling GPLv3 `ffmpeg.exe`. Optional user-PATH `ffmpeg` fallback only via `FFMpegCore` (MIT). `omaenc.c` / `omadec.c` are `[SPEC-REFERENCE ONLY]`. |
@@ -41,14 +41,15 @@ This document reconciles the **Global Software Architecture Specification (L1–
 
 ## 3. Critical Binary & Hardware Invariants
 
-1. **Dual `.OMA` Container Header (`ea3` + `EA3`):**
-   - **Block 1 (`ea3`):** ID3v2.3-style tag header starting with ASCII `0x65 0x61 0x33` (`ea3`). All text frames (`TIT2`, `TPE1`, `TALB`) must use **UTF-16BE** (`0x02` encoding byte).
-   - **Block 2 (`EA3`):** 96-byte audio/crypto descriptor starting with ASCII `0x45 0x41 0x33` (`EA3`), encoding Codec ID (`0x00` ATRAC3, `0x01` ATRAC3plus, `0x03` MP3) and protection flag (`0xFFFE` keyless for `NW-E400/E500/HD5` vs. `DvId.dat` XOR/DES mask for `NW-HD1/HD3/A600/A1000/A3000/S700/A800`).
+1. **Dual `.OMA` Container Header (`ea3` + `EA3`) & `DvID` Key Acquisition:**
+   - **Block 1 (`ea3`):** ID3v2.3-style tag header starting with ASCII `0x65 0x61 0x33` (`ea3`). Must honor the dynamic synchsafe size in bytes `6..9` (`10 + ea3BodySize`, e.g., `0x400` bytes observed on physical `NW-E403` vs. `0xC00` typical). Text frames (`TIT2`, `TPE1`, `TALB`) must use **UTF-16BE** (`0x02` encoding byte).
+   - **Block 2 (`EA3`):** 96-byte audio/crypto descriptor starting with ASCII `0x45 0x41 0x33` (`EA3`), encoding Codec ID (`0x00` ATRAC3, `0x01` ATRAC3plus, `0x03` MP3) and protection mode: **`0xFFFE` 4-byte `DvID` XOR scrambling** (`((0x2465 + trackId * 0x5296E435) & 0xFFFFFFFF) ^ deviceKey`) for Gen 3 (`NW-E400/E500/E100/HD3/HD5`), **`0x0001` MagicGate LSI DRM** (`30GRCT/`, `05CIDLST.DAT`) for Gen 3 ATRAC3/3plus, and **`0xFFFF` keyless mode** for Gen 4+ (`NW-A600/A1000/A3000/E00x/S700/A800`).
+   - **3-Tier Read-Only `DvID` Resolution:** (1) `MP3FM/DvID.DAT` / `OMGAUDIO/DvID.DAT` file, (2) zero-elevation known-plaintext recovery from existing `0xFFFE` MP3 `.OMA` Xing/LAME headers, (3) optional elevated `IOCTL_SCSI_PASS_THROUGH` (`0xA4`).
 2. **FAT16/FAT32 & Disk Flush Discipline:**
-   - All `OMGAUDIO` paths must be written in strict uppercase 8.3 ASCII (`OMGAUDIO/10F00/10000001.OMA`).
-   - All file commits must call `FileStream.Flush(flushToDisk: true)` before reporting completion.
-3. **Device Detection Precedence:**
-   - **Primary:** Device tables, capability flags, and identification heuristics extracted from original Sony manuals/service manuals and the original SonicStage software (researched in Milestone **M0.5**).
-   - **Fallback:** Multi-factor match in `manifests/devices.json` combining USB `VID:PID` (`0x054C:xxxx`), USB `iProduct` descriptor, FAT partition capacity, and directory markers (`OMGAUDIO`, `SCREEN`, `DvId.dat`).
+   - All `OMGAUDIO` paths must be written in strict uppercase 8.3 ASCII (`OMGAUDIO/10F00/10000001.OMA`), while read enumeration permits authentic non-8.3 folders such as `NWWM-SCR/fading_wind.nwm`.
+   - All file commits must call `FileStream.Flush(flushToDisk: true)` before reporting completion, validated against the mounted volume serial number (`GetVolumeInformationW`).
+3. **Device Detection & `OmgV1`/`OmgV2` Disambiguation:**
+   - Multi-factor match in `manifests/devices.json` combining `0x054C` `VID:PID`, USB product descriptor, FAT partition capacity, `DvID[6..7]` model segment, and filesystem markers (`OMGAUDIO`, `NWWM`, `NWWM-SCR`, `SCREEN`).
+   - Because authentic Gen 3 `NW-E403` units carry empty playlist slot `0x22` tables (`01TREE22.DAT`, `03GINF22.DAT`), `OmgV2` exclusion uses `01TREE05.DAT` / `03GINF05.DAT` (Artist Link).
 4. **MP3 Tag Hygiene:**
    - Native MP3 streams wrapped into `.OMA` must have pre-existing ID3v2/APIC artwork chunks stripped and MPEG frames aligned so vintage Sony hardware decoders do not freeze.

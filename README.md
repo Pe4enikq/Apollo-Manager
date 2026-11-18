@@ -57,7 +57,7 @@ To qualify as the first MVP, **Apollo Manager** must reliably demonstrate:
 1. **Device Communication & Model Identification:** Detect connected Sony Walkman hardware (`0x054C`), inspect its filesystem/descriptors, and accurately resolve the connected model profile (`NW-E400/E500` primary target + telemetry dump support for unknown models).
 2. **Database Integrity (`OMGAUDIO` v1):** Read, update, and rebuild `OMGAUDIO` binary index tables (`00GTRLST.DAT`, `01TREE01..04.DAT`, `02TREINF.DAT`, `03GINF01..04.DAT`, `04CNTINF.DAT`, `05CIDLST.DAT`) cleanly without causing `NO DATA` or `FORMAT ERROR` on hardware.
 3. **100% Bidirectional File & Codec Interchange:** Transfer music `PC <-> Player` and `Player <-> Player` with tag preservation across supported codecs (fast pass-through MP3-in-OMA wrapping, LAME MP3 transcoding, `atracdenc` ATRAC3 encoding, and full `.oma` decoding via `vgmstream`; see [`ROADMAP.md`](ROADMAP.md) for the MVP vs. Post-MVP ATRAC3plus strategy).
-4. **Visual Animation Editor Prototype (`L3.ScreensaverStudio`):** Interactive `128×36` (and `120×36`) 1-bit pixel art & timeline prototype with GIF/PNG/`.aseprite` dithering import, simulated OLED glow preview, and `.nwm` export/deploy to the player's `SCREEN` folder.
+4. **Visual Animation Editor Prototype (`L3.ScreensaverStudio`):** Interactive `120×36` logical OLED (packed `48×120` 3-block column-stripe `.nwm`, `0xEC01`) 1-bit pixel art & timeline prototype with GIF/PNG/`.aseprite` dithering import, simulated OLED glow preview, and `.nwm` export/deploy to the player's `SCREEN` / `NWWM-SCR` folder.
 
 ---
 
