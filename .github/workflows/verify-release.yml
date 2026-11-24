@@ -59,8 +59,12 @@ jobs:
           $env:DOTNET_ROOT = ""
 
           Write-Host "=== Running --verify-standalone (Portable) ==="
-          & $exe --verify-standalone
-          if ($LASTEXITCODE -ne 0) { throw "Portable --verify-standalone failed with exit code $LASTEXITCODE" }
+          $vOut = "$work\portable-verify-stdout.txt"
+          $vErr = "$work\portable-verify-stderr.txt"
+          $pVerify = Start-Process -FilePath $exe -ArgumentList "--verify-standalone" -Wait -PassThru -NoNewWindow -RedirectStandardOutput $vOut -RedirectStandardError $vErr
+          if (Test-Path $vOut) { Get-Content $vOut }
+          if (Test-Path $vErr) { $errText = Get-Content $vErr; if ($errText) { Write-Host "STDERR:"; $errText } }
+          if ($pVerify.ExitCode -ne 0) { throw "Portable --verify-standalone failed with exit code $($pVerify.ExitCode)" }
 
           Write-Host "=== Checking external codec CLIs (VC++ / DLL dependencies) ==="
           $atrac = Join-Path $portDir "tools\atracdenc\atracdenc.exe"
@@ -102,8 +106,12 @@ jobs:
 
           $env:DOTNET_ROOT = ""
           Write-Host "=== Running --verify-standalone (Installed) ==="
-          & $exe --verify-standalone
-          if ($LASTEXITCODE -ne 0) { throw "Installed --verify-standalone failed with exit code $LASTEXITCODE" }
+          $iOut = "$work\installed-verify-stdout.txt"
+          $iErr = "$work\installed-verify-stderr.txt"
+          $pIVerify = Start-Process -FilePath $exe -ArgumentList "--verify-standalone" -Wait -PassThru -NoNewWindow -RedirectStandardOutput $iOut -RedirectStandardError $iErr
+          if (Test-Path $iOut) { Get-Content $iOut }
+          if (Test-Path $iErr) { $errText = Get-Content $iErr; if ($errText) { Write-Host "STDERR:"; $errText } }
+          if ($pIVerify.ExitCode -ne 0) { throw "Installed --verify-standalone failed with exit code $($pIVerify.ExitCode)" }
 
           Write-Host "=== Running silent Inno Setup uninstall ==="
           $unins = Join-Path $installDir "unins000.exe"
