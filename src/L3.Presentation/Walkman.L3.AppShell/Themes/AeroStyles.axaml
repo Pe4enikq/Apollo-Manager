@@ -1,0 +1,689 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="using:Walkman.L3.AppShell.Controls">
+  <Style Selector="Window">
+    <Setter Property="FontFamily" Value="{StaticResource AeroSansFont}" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+
+  <!-- Lightweight Workspace Dimming behind Pop-Out Edge Jog Dial (no expensive live BlurEffect) -->
+  <Style Selector="Grid.workspace-root.blurred">
+    <Setter Property="Opacity" Value="0.62" />
+  </Style>
+
+  <!-- Frosted Glass Panel -->
+  <Style Selector="Border.glass-frosted">
+    <Setter Property="Background" Value="{DynamicResource FrostedGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FrostedGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1.2" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="BoxShadow" Value="{DynamicResource FrostedGlassBoxShadow}" />
+  </Style>
+
+  <!-- Connected Walkman Card Lime Framing -->
+  <Style Selector="Border.device-card.connected">
+    <Setter Property="BorderBrush" Value="#CC74DF3C" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="BoxShadow" Value="{DynamicResource DeviceCardConnectedShadow}" />
+  </Style>
+
+  <!-- Virtualized Track List & Item Containers -->
+  <Style Selector="ListBox.aero-track-list">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem:selected:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem:focus /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.aero-track-list ListBoxItem:focus-visible Border.track-row">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <!-- Interactive Track Rows (no BrushTransition for 60fps glass list scrolling) -->
+  <Style Selector="Border.track-row">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource RowDividerBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="Border.track-row:pointerover">
+    <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+  </Style>
+  <Style Selector="Border.track-row.selected">
+    <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+  </Style>
+  <Style Selector="Border.track-row.playing">
+    <Setter Property="Background" Value="{DynamicResource RowPlayingBrush}" />
+  </Style>
+  <Style Selector="Border.track-row.staged-new">
+    <Setter Property="Background" Value="{DynamicResource RowPlayingBrush}" />
+    <Setter Property="BorderBrush" Value="#CC74DF3C" />
+    <Setter Property="BorderThickness" Value="3,1,0,0" />
+  </Style>
+
+  <!-- Clear Optical Glass Button / Chip -->
+  <Style Selector="Button.glass-clear">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ClearGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Padding" Value="10,5" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.16" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.glass-clear /template/ ContentPresenter">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ClearGlassBoxShadow}" />
+  </Style>
+  <Style Selector="Button.glass-clear:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="#B068BFFF" />
+  </Style>
+  <Style Selector="Button.glass-clear:pressed">
+    <Setter Property="RenderTransform" Value="translateY(1px)" />
+  </Style>
+  <Style Selector="Button.glass-clear:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="#B068BFFF" />
+  </Style>
+  <Style Selector="Button.glass-clear:focus-visible">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+    <Setter Property="BorderThickness" Value="1.6" />
+  </Style>
+  <Style Selector="Button.glass-clear:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ClearGlassBorderBrush}" />
+  </Style>
+  <Style Selector="Button.glass-clear:disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button.glass-clear.under-glow-green">
+    <Setter Property="BorderBrush" Value="#BF6EE032" />
+  </Style>
+  <Style Selector="Button.glass-clear.under-glow-green /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="{DynamicResource ClearGlassGreenGlowShadow}" />
+  </Style>
+
+  <Style Selector="Border.glass-clear-box">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ClearGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ClearGlassBoxShadow}" />
+  </Style>
+
+  <!-- Brushed Metal Hardware Button -->
+  <Style Selector="Button.metal-button">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Background" Value="{DynamicResource MetalButtonBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MetalButtonBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.16" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.metal-button /template/ ContentPresenter">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonBoxShadow}" />
+  </Style>
+  <Style Selector="Button.metal-button:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MetalButtonHoverBgBrush}" />
+    <Setter Property="BorderBrush" Value="#B860B9F5" />
+  </Style>
+  <Style Selector="Button.metal-button:pressed">
+    <Setter Property="RenderTransform" Value="translateY(1px)" />
+  </Style>
+  <Style Selector="Button.metal-button:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MetalButtonBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MetalButtonBorderBrush}" />
+  </Style>
+  <Style Selector="Button.metal-button:focus-visible">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+    <Setter Property="BorderThickness" Value="1.6" />
+  </Style>
+  <Style Selector="Button.metal-button:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MetalButtonBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MetalButtonBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+  <Style Selector="Button.metal-button:disabled">
+    <Setter Property="Opacity" Value="0.58" />
+  </Style>
+
+  <!-- Hardware Under-Glow States -->
+  <Style Selector="Button.metal-button.under-glow-green">
+    <Setter Property="BorderBrush" Value="#CC6CD434" />
+  </Style>
+  <Style Selector="Button.metal-button.under-glow-green /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonGreenGlowShadow}" />
+  </Style>
+
+  <Style Selector="Button.metal-button.under-glow-blue">
+    <Setter Property="BorderBrush" Value="#D648B2FA" />
+  </Style>
+  <Style Selector="Button.metal-button.under-glow-blue /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonBlueGlowShadow}" />
+  </Style>
+  <!-- Locked Remember-Choice & Active Encoding Blue Buttons keep full opacity & blue glow when disabled -->
+  <Style Selector="Button.metal-button.under-glow-blue:disabled">
+    <Setter Property="Opacity" Value="1.0" />
+    <Setter Property="BorderBrush" Value="#D648B2FA" />
+  </Style>
+  <Style Selector="Button.metal-button.under-glow-blue:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MetalButtonBgBrush}" />
+    <Setter Property="BorderBrush" Value="#D648B2FA" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonBlueGlowShadow}" />
+  </Style>
+
+  <!-- ON / OFF Hardware State Labels -->
+  <Style Selector="TextBlock.toggle-state">
+    <Setter Property="Foreground" Value="{DynamicResource AeroSubtleBrush}" />
+  </Style>
+  <Style Selector="TextBlock.toggle-state.on-green">
+    <Setter Property="Foreground" Value="{DynamicResource AeroLimeInkBrush}" />
+  </Style>
+  <Style Selector="TextBlock.toggle-state.on-blue">
+    <Setter Property="Foreground" Value="{DynamicResource AeroSkyInkBrush}" />
+  </Style>
+
+  <!-- Segmented Pill / Filter Buttons -->
+  <Style Selector="Button.aero-tab">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,5" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroMutedBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.14" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.14" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.aero-tab:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource TabHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+  <Style Selector="Button.aero-tab.active">
+    <Setter Property="Background" Value="{DynamicResource TabActiveBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+  <Style Selector="Button.aero-tab.active /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="0 2 6 -1 #2418283C" />
+  </Style>
+  <Style Selector="Button.aero-tab:focus-visible">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+  </Style>
+
+  <!-- Glass Inputs & ComboBoxes -->
+  <Style Selector="TextBox.glass-input">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ClearGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBox.glass-input:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#B068BFFF" />
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+  </Style>
+  <Style Selector="TextBox.glass-input:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+    <Setter Property="BorderThickness" Value="1.4" />
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+  </Style>
+
+  <Style Selector="ComboBox.glass-select">
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ClearGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ComboBox.glass-select:pointerover /template/ Border#Background">
+    <Setter Property="BorderBrush" Value="#B068BFFF" />
+    <Setter Property="Background" Value="{DynamicResource ClearGlassSurfaceBrush}" />
+  </Style>
+  <Style Selector="ComboBox.glass-select:focus /template/ Border#Background">
+    <Setter Property="BorderBrush" Value="#FF56BEFF" />
+    <Setter Property="BorderThickness" Value="1.4" />
+  </Style>
+
+  <!-- Floating Bottom Dock Slide & Fade Choreography -->
+  <Style Selector="ctrl|BrushedMetalPanel.dock-card">
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="RenderTransform" Value="translateY(26px)" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.24" Easing="CubicEaseOut" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.24" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ctrl|BrushedMetalPanel.dock-card.dock-open">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="RenderTransform" Value="translateY(0px)" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+  </Style>
+
+  <!-- Dock Activity Spinners (only active while playing / encoding) -->
+  <Style Selector="ctrl|StrokeIcon.spin-slow">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Style.Animations>
+      <Animation Duration="0:0:6" IterationCount="INFINITE">
+        <KeyFrame Cue="0%">
+          <Setter Property="RotateTransform.Angle" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="RotateTransform.Angle" Value="360" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+  <Style Selector="ctrl|StrokeIcon.spin-active">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Style.Animations>
+      <Animation Duration="0:0:1.4" IterationCount="INFINITE">
+        <KeyFrame Cue="0%">
+          <Setter Property="RotateTransform.Angle" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="RotateTransform.Angle" Value="360" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <!-- Dedicated Bottom Dock Zone & Optional Sidebar Rail Margin (no shifting animation) -->
+  <Style Selector="Grid.workspace-root">
+    <Setter Property="Margin" Value="92,48,24,104" />
+  </Style>
+  <Style Selector="Grid.workspace-root.rail-open">
+    <Setter Property="Margin" Value="102,48,24,104" />
+  </Style>
+
+  <!-- Navigation Style Switch Transitions (Edge Jog Dial <-> Sidebar Rail) -->
+  <Style Selector="ctrl|EdgeJogDialControl.nav-hidden, ctrl|BrushedMetalPanel.nav-hidden">
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="RenderTransform" Value="translateX(-24px)" />
+  </Style>
+  <Style Selector="ctrl|EdgeJogDialControl.nav-visible, ctrl|BrushedMetalPanel.nav-visible">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translateX(0px)" />
+  </Style>
+  <Style Selector="ctrl|EdgeJogDialControl, ctrl|BrushedMetalPanel.sidebar-rail">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.22" Easing="CubicEaseOut" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.22" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <!-- Machined Recessed Control Wells inside BrushedMetalPanel -->
+  <Style Selector="Border.metal-well">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Background" Value="{DynamicResource MetalWellBgBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MetalWellBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="10,9" />
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalWellShadow}" />
+  </Style>
+
+  <!-- Sleek Non-Overlapping Aero ScrollBars (explicit ControlTemplate so it never expands into Windows default) -->
+  <Style Selector="ScrollViewer">
+    <Setter Property="AllowAutoHide" Value="False" />
+  </Style>
+  <Style Selector="ListBox">
+    <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+  </Style>
+  <Style Selector="ScrollBar:vertical">
+    <Setter Property="Width" Value="14" />
+    <Setter Property="MinWidth" Value="14" />
+    <Setter Property="MaxWidth" Value="14" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Background="Transparent" Margin="6,4,2,4">
+          <Track Name="PART_Track"
+                 Minimum="{TemplateBinding Minimum}"
+                 Maximum="{TemplateBinding Maximum}"
+                 Value="{TemplateBinding Value, Mode=TwoWay}"
+                 ViewportSize="{TemplateBinding ViewportSize}"
+                 Orientation="Vertical"
+                 IsDirectionReversed="True">
+            <Track.DecreaseButton>
+              <RepeatButton Name="PART_PageUpButton" Background="Transparent" BorderThickness="0">
+                <RepeatButton.Template>
+                  <ControlTemplate>
+                    <Border Background="Transparent" />
+                  </ControlTemplate>
+                </RepeatButton.Template>
+              </RepeatButton>
+            </Track.DecreaseButton>
+            <Track.IncreaseButton>
+              <RepeatButton Name="PART_PageDownButton" Background="Transparent" BorderThickness="0">
+                <RepeatButton.Template>
+                  <ControlTemplate>
+                    <Border Background="Transparent" />
+                  </ControlTemplate>
+                </RepeatButton.Template>
+              </RepeatButton>
+            </Track.IncreaseButton>
+            <Thumb Name="PART_Thumb" Width="6" MinHeight="28" Background="#666C88A8" BorderThickness="0">
+              <Thumb.Template>
+                <ControlTemplate>
+                  <Border Background="{TemplateBinding Background}" CornerRadius="3" />
+                </ControlTemplate>
+              </Thumb.Template>
+            </Thumb>
+          </Track>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ScrollBar:vertical:expanded">
+    <Setter Property="Width" Value="14" />
+    <Setter Property="MinWidth" Value="14" />
+    <Setter Property="MaxWidth" Value="14" />
+  </Style>
+  <Style Selector="ScrollBar:horizontal">
+    <Setter Property="Height" Value="14" />
+    <Setter Property="MinHeight" Value="14" />
+    <Setter Property="MaxHeight" Value="14" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Background="Transparent" Margin="4,6,4,2">
+          <Track Name="PART_Track"
+                 Minimum="{TemplateBinding Minimum}"
+                 Maximum="{TemplateBinding Maximum}"
+                 Value="{TemplateBinding Value, Mode=TwoWay}"
+                 ViewportSize="{TemplateBinding ViewportSize}"
+                 Orientation="Horizontal"
+                 IsDirectionReversed="False">
+            <Track.DecreaseButton>
+              <RepeatButton Name="PART_PageUpButton" Background="Transparent" BorderThickness="0">
+                <RepeatButton.Template>
+                  <ControlTemplate>
+                    <Border Background="Transparent" />
+                  </ControlTemplate>
+                </RepeatButton.Template>
+              </RepeatButton>
+            </Track.DecreaseButton>
+            <Track.IncreaseButton>
+              <RepeatButton Name="PART_PageDownButton" Background="Transparent" BorderThickness="0">
+                <RepeatButton.Template>
+                  <ControlTemplate>
+                    <Border Background="Transparent" />
+                  </ControlTemplate>
+                </RepeatButton.Template>
+              </RepeatButton>
+            </Track.IncreaseButton>
+            <Thumb Name="PART_Thumb" Height="6" MinWidth="28" Background="#666C88A8" BorderThickness="0">
+              <Thumb.Template>
+                <ControlTemplate>
+                  <Border Background="{TemplateBinding Background}" CornerRadius="3" />
+                </ControlTemplate>
+              </Thumb.Template>
+            </Thumb>
+          </Track>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ScrollBar:horizontal:expanded">
+    <Setter Property="Height" Value="14" />
+    <Setter Property="MinHeight" Value="14" />
+    <Setter Property="MaxHeight" Value="14" />
+  </Style>
+  <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pointerover">
+    <Setter Property="Background" Value="#BB4EA8F0" />
+  </Style>
+  <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pressed">
+    <Setter Property="Background" Value="#EE3B9CE8" />
+  </Style>
+  <Style Selector="ProgressBar.amber-progress">
+    <Setter Property="Foreground" Value="{StaticResource AeroAmberGradientBrush}" />
+  </Style>
+
+  <!-- Unified Bottom Utility Bars (Start Hub & Edge Jog Dial) -->
+  <Style Selector="Border.utility-dock">
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="RenderTransform" Value="translateY(20px)" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.20" Easing="CubicEaseOut" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.20" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.utility-dock.utility-open">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="RenderTransform" Value="translateY(0px)" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+  </Style>
+
+  <!-- Amber Destructive / Warning Metallic CTA Highlight -->
+  <Style Selector="Button.metal-button.under-glow-danger">
+    <Setter Property="BorderBrush" Value="#D8F59E0B" />
+  </Style>
+  <Style Selector="Button.metal-button.under-glow-danger /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonAmberGlowShadow}" />
+  </Style>
+  <Style Selector="Button.glass-clear.under-glow-danger">
+    <Setter Property="BorderBrush" Value="#D8F59E0B" />
+  </Style>
+  <Style Selector="Button.glass-clear.under-glow-danger /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="{DynamicResource MetalButtonAmberGlowShadow}" />
+  </Style>
+
+  <!-- Compact DEMO badge pill -->
+  <Style Selector="Border.demo-badge">
+    <Setter Property="Background" Value="#2460A8E8" />
+    <Setter Property="BorderBrush" Value="#5560A8E8" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+
+  <!-- Lightweight Aero Glass WIP / Post-MVP Badge (zero live BlurEffect) -->
+  <Style Selector="Border.wip-badge">
+    <Setter Property="BorderBrush" Value="#88F59E0B" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="5,1" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background">
+      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#34F59E0B" Offset="0" />
+        <GradientStop Color="#18F59E0B" Offset="1" />
+      </LinearGradientBrush>
+    </Setter>
+  </Style>
+  <Style Selector="TextBlock.wip-badge-text">
+    <Setter Property="FontSize" Value="8.5" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="LetterSpacing" Value="0.5" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroDangerInkBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Floating Aero Toast Notification Cards -->
+  <Style Selector="Border.aero-toast">
+    <Setter Property="Background" Value="{DynamicResource ToastSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FrostedGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="14,10" />
+    <Setter Property="BoxShadow" Value="{DynamicResource FrostedGlassBoxShadow}" />
+  </Style>
+  <Style Selector="Border.aero-toast.warning">
+    <Setter Property="BorderBrush" Value="#CCEB961E" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+  <Style Selector="Border.aero-toast.error">
+    <Setter Property="BorderBrush" Value="#CCDD6B20" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+  <Style Selector="Border.aero-toast.success">
+    <Setter Property="BorderBrush" Value="#996CD434" />
+    <Setter Property="BorderThickness" Value="1.2" />
+  </Style>
+
+  <!-- Centered Confirmation Modal -->
+  <Style Selector="Border.aero-modal-card">
+    <Setter Property="Background" Value="{DynamicResource ModalSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FrostedGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1.2" />
+    <Setter Property="CornerRadius" Value="22" />
+    <Setter Property="Padding" Value="26,22" />
+    <Setter Property="BoxShadow" Value="{DynamicResource FrostedGlassBoxShadow}" />
+  </Style>
+
+  <!-- Unified View & Pane Typography -->
+  <Style Selector="TextBlock.view-title">
+    <Setter Property="FontSize" Value="22" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style Selector="TextBlock.view-subtitle">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroMutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.pane-section-header">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="LetterSpacing" Value="1.1" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Inline Interactive Star Rating Buttons -->
+  <Style Selector="Button.star-btn">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="1,0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroMutedBrush}" />
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.star-btn /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Border.track-row:pointerover Button.star-btn">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button.star-btn.lit">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+  <Style Selector="Button.star-btn:pointerover">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="Foreground" Value="#FF38BDF8" />
+  </Style>
+  <Style Selector="TextBlock.rating-stars-amber">
+    <Setter Property="Foreground" Value="{DynamicResource AeroMutedBrush}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Folder Header State Highlights -->
+  <Style Selector="Button.glass-clear.folder-playing">
+    <Setter Property="Background" Value="#2874DF3C" />
+    <Setter Property="BorderBrush" Value="#AA6CD434" />
+  </Style>
+  <Style Selector="Button.glass-clear.folder-selected">
+    <Setter Property="Background" Value="#284EA8F0" />
+    <Setter Property="BorderBrush" Value="#AA4EA8F0" />
+  </Style>
+  <Style Selector="Button.glass-clear.folder-playing-selected">
+    <Setter Property="BorderBrush" Value="#AA5AC4B8" />
+    <Setter Property="Background">
+      <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+        <GradientStop Color="#2E74DF3C" Offset="0" />
+        <GradientStop Color="#2E4EA8F0" Offset="1" />
+      </LinearGradientBrush>
+    </Setter>
+  </Style>
+
+  <!-- DnD Insertion Slot Bar & Full-Folder Drop Highlight -->
+  <Style Selector="Border.dnd-insert-bar">
+    <Setter Property="Height" Value="3" />
+    <Setter Property="CornerRadius" Value="1.5" />
+    <Setter Property="Background" Value="{DynamicResource AeroLimeInkBrush}" />
+    <Setter Property="BoxShadow" Value="0 0 8 0 #AA6CD434" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+  </Style>
+  <Style Selector="Button.glass-clear.dnd-folder-drop-over">
+    <Setter Property="Background" Value="#3C74DF3C" />
+    <Setter Property="BorderBrush" Value="#EE6CD434" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+
+  <!-- Aero ToolTip Styling -->
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="{DynamicResource ModalSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FrostedGlassBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="10,7" />
+    <Setter Property="Foreground" Value="{DynamicResource AeroInkBrush}" />
+  </Style>
+</Styles>

@@ -2,8 +2,18 @@
   <PropertyGroup>
     <AssemblyName>Walkman.L2.Codec.Pipeline</AssemblyName>
     <RootNamespace>Walkman.L2.Codec.Pipeline</RootNamespace>
-    <Description>L2 Bidirectional Audio Codec &amp; Transcode Pipeline (implemented in M3).</Description>
+    <Description>L2 Bidirectional Audio Codec &amp; Transcode Pipeline (MP3 pass-through, external libmp3lame, atracdenc, vgmstream).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <PackageReference Include="Concentus" Version="2.2.2" />
+    <PackageReference Include="Concentus.Oggfile" Version="1.0.6" />
+    <PackageReference Include="z440.atl.core" Version="6.14.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />

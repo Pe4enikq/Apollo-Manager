@@ -24,6 +24,7 @@ public sealed class DevicePollerCoordinator
     private readonly Win32VolumeAndUsbProber _prober;
     private readonly DvIdHardwareKeyResolver _dvIdResolver;
     private readonly Dictionary<uint, string> _activeSessionsBySerial = new();
+    private readonly HashSet<string> _activeDeviceScopes = new(StringComparer.OrdinalIgnoreCase);
 
     public DevicePollerCoordinator(DeviceManifestRegistry registry)
         : this(registry, new Win32VolumeAndUsbProber(), new DvIdHardwareKeyResolver())
@@ -49,32 +50,47 @@ public sealed class DevicePollerCoordinator
     public IReadOnlyList<PolledDeviceOutcome> ScanConnectedDevices(bool allowScsiPassThrough = false)
     {
         var usbDevices = _prober.EnumerateSonyUsbDevices();
-        var volumes = _prober.EnumerateWalkmanCandidateVolumes();
+        var volumes = _prober.EnumerateWalkmanCandidateVolumes(usbDevices);
 
-        var primaryUsb = usbDevices.FirstOrDefault();
         var outcomes = new List<PolledDeviceOutcome>(volumes.Count);
 
         foreach (var volume in volumes)
         {
-            var dvId = _dvIdResolver.ResolveForVolume(volume.RootPath, allowScsiPassThrough);
+            var matchedUsb = _prober.ResolveUsbDeviceForVolume(volume.RootPath, usbDevices, allowFallbackToFirst: false);
+            bool allowScsiForVolume = allowScsiPassThrough &&
+                volume.DriveType == DriveType.Removable &&
+                matchedUsb is not null &&
+                matchedUsb.VendorId == 0x054C;
+            var dvId = _dvIdResolver.ResolveForVolume(volume.RootPath, allowScsiForVolume);
+            var rawBpb = _prober.TryReadFat16Bpb(volume.RootPath);
             var probe = new DeviceDetectionProbe(
-                VendorId: primaryUsb?.VendorId ?? 0,
-                ProductId: primaryUsb?.ProductId ?? 0,
-                UsbProductString: primaryUsb?.Description,
+                VendorId: matchedUsb?.VendorId ?? 0,
+                ProductId: matchedUsb?.ProductId ?? 0,
+                UsbProductString: matchedUsb?.Description,
                 VolumeRootPath: volume.RootPath,
                 VolumeSerialNumber: volume.VolumeSerialNumber,
                 TotalVolumeBytes: volume.TotalBytes,
                 HardwareDvIdSegment: dvId.ModelSegment,
                 HardwareDvIdKey: dvId.DeviceKey,
                 PresentRootFolders: volume.PresentRootFolders,
-                PresentOmgAudioFiles: volume.PresentOmgAudioFiles);
+                PresentOmgAudioFiles: volume.PresentOmgAudioFiles,
+                BpbDiagnostics: rawBpb);
 
             var resolution = _registry.ResolveDevice(probe);
-            if (resolution.IsRecognized && resolution.Identity is not null && dvId.RawDvIdBytes is not null)
+            if (resolution.IsRecognized && resolution.Identity is not null)
             {
+                var evaluatedBpb = rawBpb is not null
+                    ? Win32VolumeAndUsbProber.EvaluateBpbPolicy(rawBpb, resolution.Identity.Profile.StrictFactoryFat16Bpb)
+                    : null;
+
+                probe = probe with { BpbDiagnostics = evaluatedBpb };
                 resolution = resolution with
                 {
-                    Identity = resolution.Identity with { RawDvIdBytes = dvId.RawDvIdBytes }
+                    Identity = resolution.Identity with
+                    {
+                        RawDvIdBytes = dvId.RawDvIdBytes ?? resolution.Identity.RawDvIdBytes,
+                        BpbDiagnostics = evaluatedBpb
+                    }
                 };
             }
 
@@ -136,7 +152,22 @@ public sealed class DevicePollerCoordinator
     {
         ArgumentNullException.ThrowIfNull(orchestrator);
 
-        var outcomes = ScanConnectedDevices(allowScsiPassThrough);
+        IReadOnlyList<PolledDeviceOutcome> outcomes = Array.Empty<PolledDeviceOutcome>();
+        int[] scanBackoffsMs = [100, 220];
+        for (int attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                outcomes = ScanConnectedDevices(allowScsiPassThrough);
+                break;
+            }
+            catch (IOException ex) when (ex is not FileNotFoundException and not DirectoryNotFoundException && attempt < scanBackoffsMs.Length)
+            {
+                await Task.Delay(scanBackoffsMs[attempt], ct).ConfigureAwait(false);
+            }
+        }
+
         var presentSerials = new HashSet<uint>(
             outcomes
                 .Where(o => o.Probe.VolumeSerialNumber.HasValue)
@@ -150,20 +181,32 @@ public sealed class DevicePollerCoordinator
         {
             var instanceId = _activeSessionsBySerial[serial];
             _activeSessionsBySerial.Remove(serial);
+            _activeDeviceScopes.Remove(instanceId);
             await orchestrator.UnloadScopeAsync($"device:{instanceId}", ct).ConfigureAwait(false);
             eventBus?.Publish(new DeviceDisconnectedEvent(instanceId, serial, DateTimeOffset.UtcNow));
         }
 
+        var activeIdsThisPass = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var outcome in outcomes)
         {
             if (outcome.Resolution.IsRecognized && outcome.Resolution.Identity is not null)
             {
                 var identity = outcome.Resolution.Identity;
+                activeIdsThisPass.Add(identity.DeviceInstanceId);
+
                 if (identity.VolumeSerialNumber.HasValue)
                 {
+                    if (_activeSessionsBySerial.TryGetValue(identity.VolumeSerialNumber.Value, out var prevId) &&
+                        !string.Equals(prevId, identity.DeviceInstanceId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _activeDeviceScopes.Remove(prevId);
+                        await orchestrator.UnloadScopeAsync($"device:{prevId}", ct).ConfigureAwait(false);
+                    }
+
                     _activeSessionsBySerial[identity.VolumeSerialNumber.Value] = identity.DeviceInstanceId;
                 }
 
+                _activeDeviceScopes.Add(identity.DeviceInstanceId);
                 await orchestrator.HydrateForDeviceAsync(identity, ct).ConfigureAwait(false);
             }
             else if (outcome.Probe.VendorId == 0x054C ||
@@ -173,6 +216,32 @@ public sealed class DevicePollerCoordinator
             }
         }
 
+        var staleScopes = _activeDeviceScopes.Where(id => !activeIdsThisPass.Contains(id)).ToArray();
+        foreach (var staleId in staleScopes)
+        {
+            _activeDeviceScopes.Remove(staleId);
+            await orchestrator.UnloadScopeAsync($"device:{staleId}", ct).ConfigureAwait(false);
+        }
+
         return outcomes;
+    }
+
+    public async Task UnloadDeviceSessionAsync(
+        ConnectedDeviceIdentity identity,
+        IModuleOrchestrator orchestrator,
+        IWalkmanEventBus? eventBus = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(orchestrator);
+
+        if (identity.VolumeSerialNumber.HasValue)
+        {
+            _activeSessionsBySerial.Remove(identity.VolumeSerialNumber.Value);
+        }
+
+        _activeDeviceScopes.Remove(identity.DeviceInstanceId);
+        await orchestrator.UnloadScopeAsync($"device:{identity.DeviceInstanceId}", ct).ConfigureAwait(false);
+        eventBus?.Publish(new DeviceDisconnectedEvent(identity.DeviceInstanceId, identity.VolumeSerialNumber ?? 0u, DateTimeOffset.UtcNow));
     }
 }

@@ -17,7 +17,7 @@ public sealed class SanitizedTelemetryDumper : ITelemetryDumper
     private const int TableHeadSliceBytes = 4096;
     private const int MaxOmaSampleFiles = 5;
     private const int MaxOmaHeadBytes = 4160;
-    private const int AudioSampleTailBytes = 64;
+    private const int AudioSampleTailBytes = 0;
 
     private static readonly string[] IgnoredDirectories =
     [
@@ -77,7 +77,8 @@ public sealed class SanitizedTelemetryDumper : ITelemetryDumper
                     ? $"0x{request.Probe.HardwareDvIdKey.Value:X8}"
                     : null,
                 request.Probe.PresentRootFolders,
-                request.Probe.PresentOmgAudioFiles
+                request.Probe.PresentOmgAudioFiles,
+                VolumeBpbDiagnostics = request.Probe.BpbDiagnostics
             };
 
             await WriteTextEntryAsync(
@@ -226,11 +227,47 @@ public sealed class SanitizedTelemetryDumper : ITelemetryDumper
         await entryStream.WriteAsync(data, ct).ConfigureAwait(false);
     }
 
+    private static readonly string[] AllowedDumpFolders =
+    [
+        "OMGAUDIO",
+        "NWWM",
+        "NWWM-SCR",
+        "SCREEN",
+        "MP3FM",
+        "ESYS",
+        "HIFI",
+        "HMDHIFI"
+    ];
+
     private static IReadOnlyList<(string RelativePath, long Length)> EnumerateFilesSafely(string rootPath)
     {
         var results = new List<(string, long)>();
         var pendingDirs = new Stack<string>();
-        pendingDirs.Push(rootPath);
+
+        string[] rootDirs;
+        try
+        {
+            rootDirs = Directory.GetDirectories(rootPath);
+        }
+        catch
+        {
+            return results;
+        }
+
+        foreach (var dir in rootDirs)
+        {
+            var name = Path.GetFileName(dir);
+            if (string.IsNullOrWhiteSpace(name) || IgnoredDirectories.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            results.Add(($"{name}/", 0));
+            if (AllowedDumpFolders.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                pendingDirs.Push(dir);
+            }
+        }
 
         while (pendingDirs.Count > 0)
         {

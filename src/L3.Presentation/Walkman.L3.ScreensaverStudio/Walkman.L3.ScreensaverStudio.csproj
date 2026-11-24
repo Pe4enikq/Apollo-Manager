@@ -3,6 +3,7 @@
     <AssemblyName>Walkman.L3.ScreensaverStudio</AssemblyName>
     <RootNamespace>Walkman.L3.ScreensaverStudio</RootNamespace>
     <Description>L3 Visual 1-bit .nwm Screensaver Editor &amp; OLED Simulator (implemented in M4).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>

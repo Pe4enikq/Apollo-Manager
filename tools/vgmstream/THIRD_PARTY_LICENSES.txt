@@ -1,0 +1,57 @@
+vgmstream — Third-Party Licenses & Upstream Sources
+====================================================
+
+1. vgmstream (`vgmstream-cli.exe`, r2168)
+   - License: ISC (see `COPYING` in this directory)
+   - Upstream source: https://github.com/vgmstream/vgmstream
+
+2. FFmpeg (`avcodec-vgmstream-63.dll`, `avformat-vgmstream-63.dll`,
+   `avutil-vgmstream-61.dll`, `swresample-vgmstream-7.dll`, n9.0.2 LGPL build)
+   - License: GNU Lesser General Public License v2.1 (see `COPYING.LGPLv2.1`)
+   - Upstream source: https://ffmpeg.org/releases/
+   - vgmstream dependency build scripts: https://github.com/vgmstream/vgmstream-deps
+
+3. mpg123 (`libmpg123-0.dll`)
+   - License: GNU Lesser General Public License v2.1 (see `COPYING.LGPLv2.1`)
+   - Upstream source: https://www.mpg123.de/download/
+
+4. Xiph.Org Codecs (`libcelt-0061.dll`, `libcelt-0110.dll`, `libspeex-1.dll`,
+   `libvorbis.dll`)
+   - License: BSD-3-Clause (verbatim notice below)
+   - Upstream sources:
+     * Vorbis: https://xiph.org/downloads/ / https://gitlab.xiph.org/xiph/vorbis
+     * Speex:  https://xiph.org/downloads/ / https://gitlab.xiph.org/xiph/speex
+     * CELT:   https://gitlab.xiph.org/xiph/celt
+
+-------------------------------------------------------------------------------
+BSD 3-Clause License (Xiph.Org Foundation — Vorbis, Speex, CELT)
+-------------------------------------------------------------------------------
+
+Copyright (c) 2002-2020 Xiph.org Foundation
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+- Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+- Neither the name of the Xiph.org Foundation nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE FOUNDATION
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

@@ -3,6 +3,7 @@
     <AssemblyName>Walkman.L2.Telemetry.Dumper</AssemblyName>
     <RootNamespace>Walkman.L2.Telemetry.Dumper</RootNamespace>
     <Description>L2 Read-Only Sanitized Diagnostic Telemetry Collector (implemented in M1).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>

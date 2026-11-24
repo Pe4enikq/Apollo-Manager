@@ -28,8 +28,9 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
     private readonly Func<string, string?> _moduleAssemblyPathResolver;
 
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private readonly Dictionary<string, ScopeRecord> _scopes = new(StringComparer.Ordinal);
-    private readonly Dictionary<Type, RegisteredEngineEntry> _engineServices = new();
+    private readonly Dictionary<Type, List<RegisteredEngineEntry>> _engineServices = new();
 
     public ModuleOrchestrator(
         IWalkmanEventBus eventBus,
@@ -126,40 +127,55 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(scopeId);
 
-        ScopeRecord? scope;
-        lock (_gate)
+        await _lifecycleLock.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            if (!_scopes.Remove(scopeId, out scope))
+            ScopeRecord? scope;
+            lock (_gate)
             {
-                return;
+                if (!_scopes.Remove(scopeId, out scope))
+                {
+                    return;
+                }
+            }
+
+            var unloadedModules = scope.ModuleIds.ToArray();
+
+            // Shut down plugins in reverse initialization order before releasing scope handlers and ALCs.
+            for (int i = scope.Plugins.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    await scope.Plugins[i].ShutdownAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Continue unloading remaining plugins and ALCs even if one ShutdownAsync throws.
+                }
+            }
+
+            RemoveScopedEngineServices(scopeId);
+            _mediator.UnregisterScope(scopeId);
+            _eventBus.UnsubscribeScope(scopeId);
+
+            scope.Plugins.Clear();
+            scope.ModuleIds.Clear();
+
+            foreach (var context in scope.LoadContexts)
+            {
+                context.Unload();
+            }
+
+            scope.LoadContexts.Clear();
+
+            foreach (var moduleId in unloadedModules)
+            {
+                _eventBus.Publish(new ModuleUnloadedEvent(moduleId, scopeId));
             }
         }
-
-        var unloadedModules = scope.ModuleIds.ToArray();
-
-        // Shut down plugins in reverse initialization order before releasing scope handlers and ALCs.
-        for (int i = scope.Plugins.Count - 1; i >= 0; i--)
+        finally
         {
-            await scope.Plugins[i].ShutdownAsync(ct).ConfigureAwait(false);
-        }
-
-        RemoveScopedEngineServices(scopeId);
-        _mediator.UnregisterScope(scopeId);
-        _eventBus.UnsubscribeScope(scopeId);
-
-        scope.Plugins.Clear();
-        scope.ModuleIds.Clear();
-
-        foreach (var context in scope.LoadContexts)
-        {
-            context.Unload();
-        }
-
-        scope.LoadContexts.Clear();
-
-        foreach (var moduleId in unloadedModules)
-        {
-            _eventBus.Publish(new ModuleUnloadedEvent(moduleId, scopeId));
+            _lifecycleLock.Release();
         }
     }
 
@@ -168,8 +184,8 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
     {
         lock (_gate)
         {
-            return _engineServices.TryGetValue(typeof(TService), out var entry)
-                ? (TService)entry.Implementation
+            return _engineServices.TryGetValue(typeof(TService), out var stack) && stack.Count > 0
+                ? (TService)stack[^1].Implementation
                 : null;
         }
     }
@@ -204,51 +220,70 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
         ArgumentException.ThrowIfNullOrWhiteSpace(moduleId);
         ArgumentException.ThrowIfNullOrWhiteSpace(scopeId);
 
-        lock (_gate)
+        await _lifecycleLock.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            if (_scopes.TryGetValue(scopeId, out var existingScope) &&
-                existingScope.ModuleIds.Contains(moduleId, StringComparer.Ordinal))
+            lock (_gate)
             {
-                return false;
-            }
-        }
-
-        var assemblyPath = _moduleAssemblyPathResolver(moduleId);
-        if (string.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
-        {
-            throw new FileNotFoundException(
-                $"Could not resolve plugin assembly for module '{moduleId}'. Resolved path: '{assemblyPath ?? "<null>"}'.",
-                assemblyPath);
-        }
-
-        var fullAssemblyPath = Path.GetFullPath(assemblyPath);
-        var (alc, plugin) = ActivatePluginFromPath(moduleId, scopeId, fullAssemblyPath);
-
-        if (!string.Equals(plugin.ModuleId, moduleId, StringComparison.Ordinal))
-        {
-            alc.Unload();
-            throw new InvalidOperationException(
-                $"Plugin assembly '{fullAssemblyPath}' reported ModuleId '{plugin.ModuleId}' instead of expected '{moduleId}'.");
-        }
-
-        var context = new PluginRegistrationContext(this, _eventBus, _mediator, scopeId);
-        await plugin.InitializeAsync(context, ct).ConfigureAwait(false);
-
-        lock (_gate)
-        {
-            if (!_scopes.TryGetValue(scopeId, out var scope))
-            {
-                scope = new ScopeRecord(scopeId);
-                _scopes[scopeId] = scope;
+                if (_scopes.TryGetValue(scopeId, out var existingScope) &&
+                    existingScope.ModuleIds.Contains(moduleId, StringComparer.Ordinal))
+                {
+                    return false;
+                }
             }
 
-            scope.ModuleIds.Add(moduleId);
-            scope.LoadContexts.Add(alc);
-            scope.Plugins.Add(plugin);
-        }
+            var assemblyPath = _moduleAssemblyPathResolver(moduleId);
+            if (string.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
+            {
+                throw new FileNotFoundException(
+                    $"Could not resolve plugin assembly for module '{moduleId}'. Resolved path: '{assemblyPath ?? "<null>"}'.",
+                    assemblyPath);
+            }
 
-        _eventBus.Publish(new ModuleLoadedEvent(plugin.ModuleId, plugin.Tier, scopeId));
-        return true;
+            var fullAssemblyPath = Path.GetFullPath(assemblyPath);
+            var (alc, plugin) = ActivatePluginFromPath(moduleId, scopeId, fullAssemblyPath);
+
+            if (!string.Equals(plugin.ModuleId, moduleId, StringComparison.Ordinal))
+            {
+                alc.Unload();
+                throw new InvalidOperationException(
+                    $"Plugin assembly '{fullAssemblyPath}' reported ModuleId '{plugin.ModuleId}' instead of expected '{moduleId}'.");
+            }
+
+            var context = new PluginRegistrationContext(this, _eventBus, _mediator, scopeId);
+            try
+            {
+                await plugin.InitializeAsync(context, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                RemoveScopedEngineServices(scopeId);
+                _mediator.UnregisterScope(scopeId);
+                _eventBus.UnsubscribeScope(scopeId);
+                alc.Unload();
+                throw;
+            }
+
+            lock (_gate)
+            {
+                if (!_scopes.TryGetValue(scopeId, out var scope))
+                {
+                    scope = new ScopeRecord(scopeId);
+                    _scopes[scopeId] = scope;
+                }
+
+                scope.ModuleIds.Add(moduleId);
+                scope.LoadContexts.Add(alc);
+                scope.Plugins.Add(plugin);
+            }
+
+            _eventBus.Publish(new ModuleLoadedEvent(plugin.ModuleId, plugin.Tier, scopeId));
+            return true;
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
     }
 
     // Isolated without inlining so local Reflection objects do not keep the collectible ALC rooted on the stack.
@@ -285,7 +320,14 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
 
         lock (_gate)
         {
-            _engineServices[typeof(TService)] = new RegisteredEngineEntry(scopeId, implementation);
+            if (!_engineServices.TryGetValue(typeof(TService), out var stack))
+            {
+                stack = new List<RegisteredEngineEntry>();
+                _engineServices[typeof(TService)] = stack;
+            }
+
+            stack.RemoveAll(e => string.Equals(e.ScopeId, scopeId, StringComparison.Ordinal));
+            stack.Add(new RegisteredEngineEntry(scopeId, implementation));
         }
     }
 
@@ -293,12 +335,17 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
     {
         lock (_gate)
         {
-            var keysToRemove = _engineServices
-                .Where(kvp => string.Equals(kvp.Value.ScopeId, scopeId, StringComparison.Ordinal))
-                .Select(kvp => kvp.Key)
-                .ToList();
+            var emptyKeys = new List<Type>();
+            foreach (var (key, stack) in _engineServices)
+            {
+                stack.RemoveAll(e => string.Equals(e.ScopeId, scopeId, StringComparison.Ordinal));
+                if (stack.Count == 0)
+                {
+                    emptyKeys.Add(key);
+                }
+            }
 
-            foreach (var key in keysToRemove)
+            foreach (var key in emptyKeys)
             {
                 _engineServices.Remove(key);
             }
@@ -332,6 +379,9 @@ public sealed class ModuleOrchestrator : IModuleOrchestrator
         {
             _orchestrator.RegisterEngineService(ScopeId, implementation);
         }
+
+        public TService? TryResolveEngine<TService>() where TService : class =>
+            _orchestrator.TryResolveEngine<TService>();
 
         public void RegisterCommandHandler<TCommand, TResponse>(ICommandHandler<TCommand, TResponse> handler)
             where TCommand : ICommand<TResponse>

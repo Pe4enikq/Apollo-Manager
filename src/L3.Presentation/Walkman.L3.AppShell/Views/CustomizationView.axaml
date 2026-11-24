@@ -1,0 +1,699 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:core="using:Walkman.L3.AppShell.Core"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.CustomizationView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,16,*">
+    <!-- Header with Right-Aligned 3-Tab Bar (matches Device & System layout) -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="Customization" Classes="view-title" />
+        <TextBlock Text="{Binding CustomUploadSubtitle}" Classes="view-subtitle" />
+      </StackPanel>
+
+      <Border Grid.Column="1" Classes="glass-clear-box" CornerRadius="16" Padding="4" VerticalAlignment="Bottom">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Classes="aero-tab" Classes.active="{Binding IsCustomOledTab}" Command="{Binding SetCustomTabCommand}" CommandParameter="oled">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Monitor}" Width="13" Height="13" />
+              <TextBlock Text="Screen &amp; OLED" FontSize="12.5" />
+              <Border Classes="wip-badge">
+                <TextBlock Text="WIP" Classes="wip-badge-text" />
+              </Border>
+            </StackPanel>
+          </Button>
+          <Button Classes="aero-tab" Classes.active="{Binding IsCustomSubtitlesTab}" Command="{Binding SetCustomTabCommand}" CommandParameter="subtitles">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Captions}" Width="13" Height="13" />
+              <TextBlock Text="Subtitles" FontSize="12.5" />
+            </StackPanel>
+          </Button>
+          <Button Classes="aero-tab" Classes.active="{Binding IsCustomTagsTab}" Command="{Binding SetCustomTabCommand}" CommandParameter="tags">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Tags}" Width="13" Height="13" />
+              <TextBlock Text="Tags &amp; Covers" FontSize="12.5" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- TAB 1: SCREEN & OLED (POST-MVP PLACEHOLDER + .NWM UTILITIES) -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsCustomOledTab}" ColumnDefinitions="1.15*,20,0.85*">
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="28">
+        <StackPanel VerticalAlignment="Center" Spacing="14" MaxWidth="520">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Border Classes="glass-clear-box" Width="44" Height="44" CornerRadius="14">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Monitor}" Width="22" Height="22" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </Border>
+            <StackPanel VerticalAlignment="Center" Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Multi-Generation Display Studio" FontSize="19" FontWeight="Bold" />
+                <Border Classes="wip-badge">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                    <TextBlock Text="WIP · POST-MVP" Classes="wip-badge-text" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <TextBlock Text="Wait for updates." FontSize="12" Foreground="{DynamicResource AeroSkyInkBrush}" FontWeight="Medium" />
+            </StackPanel>
+          </StackPanel>
+
+          <TextBlock Text="Dedicated per-series editors will arrive after hardware R&amp;D."
+                     FontSize="13.5"
+                     Foreground="{DynamicResource AeroMutedBrush}"
+                     TextWrapping="Wrap" />
+
+          <Border Classes="glass-clear-box" CornerRadius="14" Padding="14">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Planned Editor Lineups:" FontSize="12" FontWeight="SemiBold" />
+              <TextBlock Text="• NW-E400 / E500: 128×36 0xEC01 1-bit animated EL frames" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="• NW-E002 / E003: 128×36 0xEC02 column-striped OLED packs" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="• NW-A1000 / A3000: 128×96 0xD301 2-bit Organic EL canvas" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="• NW-S700 / A800 Color Lineups: Full-color wallpaper &amp; theme packer" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <ctrl:BrushedMetalPanel Grid.Column="2" IsDark="{Binding IsDark}" CornerRadiusValue="20" VerticalAlignment="Top">
+        <StackPanel Margin="22" Spacing="14">
+          <TextBlock Text=".NWM CONTAINER UTILITIES" FontSize="11" FontWeight="Bold" LetterSpacing="1.1" Foreground="{DynamicResource AeroMutedBrush}" />
+          <TextBlock Text="Inspect, pack, or validate .NWM binary frames."
+                     FontSize="12.5"
+                     Foreground="{DynamicResource AeroMutedBrush}"
+                     TextWrapping="Wrap" />
+
+          <Border Classes="metal-well" Padding="14">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding NwmProjectSummary}"
+                         FontFamily="{StaticResource AeroMonoFont}"
+                         FontSize="11.5"
+                         Foreground="{DynamicResource AeroSkyInkBrush}"
+                         TextWrapping="Wrap" />
+
+              <Grid ColumnDefinitions="*,10,*">
+                <Button Grid.Column="0"
+                        Classes="metal-button"
+                        CornerRadius="12"
+                        Padding="12,9"
+                        Command="{Binding LoadNwmFileCommand}"
+                        Content="Import .NWM..."
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" />
+                <Button Grid.Column="2"
+                        Classes="metal-button"
+                        CornerRadius="12"
+                        Padding="12,9"
+                        Command="{Binding ExportNwmFileCommand}"
+                        Content="Export .NWM..."
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding ConnectedDevice.ScreenResolution, FallbackValue=No player linked}"
+                       FontFamily="{StaticResource AeroMonoFont}"
+                       FontSize="11"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1"
+                    Classes="metal-button under-glow-blue"
+                    IsEnabled="{Binding IsDeviceConnected}"
+                    Command="{Binding UploadCustomizationToPlayerCommand}"
+                    Padding="18,9"
+                    CornerRadius="16">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Upload}" Width="13" Height="13" />
+                <TextBlock Text="Upload to Player" FontSize="12.5" FontWeight="Bold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </StackPanel>
+      </ctrl:BrushedMetalPanel>
+    </Grid>
+
+    <!-- TAB 2: SUBTITLES DUAL-PANE SPLIT WORKBENCH -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsCustomSubtitlesTab}" ColumnDefinitions="0.9*,18,1.1*">
+      <!-- Left Track Picker -->
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="16">
+        <Grid RowDefinitions="Auto,10,*">
+          <StackPanel Grid.Row="0" Spacing="8">
+            <TextBlock Text="SELECT TRACK OR FOLDER" Classes="pane-section-header" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            <Grid ColumnDefinitions="*,8,136">
+              <ComboBox Grid.Column="0"
+                        Classes="glass-select"
+                        ItemsSource="{Binding AllLocations}"
+                        SelectedItem="{Binding CustomSelectedLocation}"
+                        HorizontalAlignment="Stretch"
+                        Height="34" />
+              <Grid Grid.Column="2">
+                <TextBox x:Name="SubSearchBox"
+                         Classes="glass-input"
+                         Text="{Binding CustomTrackSearch}"
+                         Watermark="Search..."
+                         Padding="28,4,26,4"
+                         Height="34"
+                         FontSize="12" />
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Search}"
+                                 Width="12"
+                                 Height="12"
+                                 Foreground="{DynamicResource AeroSubtleBrush}"
+                                 HorizontalAlignment="Left"
+                                 VerticalAlignment="Center"
+                                 Margin="10,0,0,0"
+                                 IsHitTestVisible="False" />
+                <Button Classes="glass-clear"
+                        IsVisible="{Binding CustomTrackSearch, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Command="{Binding ClearCustomSearchCommand}"
+                        Width="18"
+                        Height="18"
+                        CornerRadius="9"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="0,0,6,0"
+                        ToolTip.Tip="Clear search">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="9" Height="9" StrokeThickness="2" />
+                </Button>
+              </Grid>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,6,Auto,6,Auto">
+              <ComboBox Grid.Column="0"
+                        Classes="glass-select"
+                        ItemsSource="{Binding AvailableSortFields}"
+                        SelectedItem="{Binding CustomSortField}"
+                        Height="30"
+                        Padding="8,2"
+                        FontSize="11.5"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="Sort tracks" />
+              <Button Grid.Column="2"
+                      Classes="glass-clear"
+                      Height="30"
+                      Padding="8,0"
+                      Command="{Binding ToggleCustomSortDirectionCommand}"
+                      ToolTip.Tip="Toggle sort direction">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SortArrows}" Width="12" Height="12" />
+              </Button>
+              <Button Grid.Column="4"
+                      Classes="glass-clear"
+                      Height="30"
+                      Padding="8,0"
+                      Command="{Binding CollapseAllFoldersCommand}"
+                      CommandParameter="cust"
+                      ToolTip.ShowDelay="1000">
+                <ToolTip.Tip>
+                  <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="12" Height="12" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                      <TextBlock Text="Info" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AeroSkyInkBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="Collapses or expands all folder groups in the track list." TextWrapping="Wrap" MaxWidth="220" FontSize="11.5" />
+                  </StackPanel>
+                </ToolTip.Tip>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.CollapseAll}" Width="12" Height="12" />
+                  <TextBlock Text="Collapse All" FontSize="11.5" FontWeight="SemiBold" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <ListBox Grid.Row="2"
+                   Classes="aero-track-list"
+                   AutoScrollToSelectedItem="False"
+                   Padding="0,0,4,12"
+                   ItemsSource="{Binding CustomizationEntries}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="core:TrackListEntry">
+                <Panel>
+                  <Button IsVisible="{Binding IsHeader}"
+                          Classes="glass-clear"
+                          Classes.folder-playing="{Binding HasPlayingTrack}"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Padding="8,5"
+                          Margin="0,5,0,2"
+                          CornerRadius="9"
+                          Click="OnFolderHeaderClicked">
+                    <Button.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).RemoveFolderFromLibraryCommand}" CommandParameter="{Binding HeaderTitle}" />
+                      </ContextMenu>
+                    </Button.ContextMenu>
+                    <Grid ColumnDefinitions="Auto,8,*,12,Auto,8,Auto">
+                      <Panel Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center">
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderClosed}" Width="13" Height="13" Foreground="{DynamicResource AeroSkyInkBrush}" IsVisible="{Binding !HasPlayingTrack}" />
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="11" Height="11" IsFilled="True" Foreground="{DynamicResource AeroLimeInkBrush}" IsVisible="{Binding HasPlayingTrack}" />
+                      </Panel>
+                      <TextBlock Grid.Column="2" Text="{Binding HeaderTitle}" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="4" Text="{Binding HeaderCountLabel}" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                      <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronDown}" Width="12" Height="12" IsVisible="{Binding IsExpanded}" />
+                      <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronRight}" Width="12" Height="12" IsVisible="{Binding !IsExpanded}" />
+                    </Grid>
+                  </Button>
+
+                  <Border IsVisible="{Binding IsTrack}"
+                          Classes="track-row"
+                          Classes.playing="{Binding Track.IsNowPlaying, FallbackValue=False}"
+                          Padding="8,8"
+                          Cursor="Hand"
+                          PointerPressed="OnSubtitleTrackPressed">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Grid.Column="0" Spacing="1">
+                        <TextBlock Text="{Binding Track.Title}" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Track.ArtistAndDuration}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                      <Border Grid.Column="1" Classes="demo-badge" IsVisible="{Binding Track.HasSubtitles, FallbackValue=False}" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <TextBlock Text="LRC" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AeroLimeInkBrush}" />
+                      </Border>
+                    </Grid>
+                  </Border>
+                </Panel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- Right Brushed Metal LRC Editor -->
+      <ctrl:BrushedMetalPanel Grid.Column="2" IsDark="{Binding IsDark}" CornerRadiusValue="20">
+        <Grid RowDefinitions="Auto,12,*,14,Auto" Margin="20">
+          <!-- Well 1: Track Preview & Audio Playback -->
+          <Border Grid.Row="0" Classes="metal-well" Padding="12,9">
+            <Grid ColumnDefinitions="*,10,Auto">
+              <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                <TextBlock Text="ACTIVE EDITING TARGET" FontSize="10" FontWeight="Bold" LetterSpacing="0.9" Foreground="{DynamicResource AeroMutedBrush}" />
+                <TextBlock Text="{Binding SelectedSubtitleTrack.Title, FallbackValue=Select a track on the left}" FontSize="14" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+              <Button Grid.Column="2"
+                      Classes="metal-button"
+                      CornerRadius="14"
+                      Padding="12,6"
+                      Click="OnPreviewSelectedSubtitleTrack">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="11" Height="11" IsFilled="True" />
+                  <TextBlock Text="Preview Audio" FontSize="11.5" FontWeight="SemiBold" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+
+          <!-- Well 2: Timestamped LRC Editor -->
+          <Border Grid.Row="2" Classes="metal-well" Padding="10">
+            <Grid RowDefinitions="Auto,8,*">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto,6,Auto,6,Auto,6,Auto">
+                <TextBlock Grid.Column="0" Text="SYNCHRONIZED .LRC EDITOR" FontSize="11" FontWeight="Bold" LetterSpacing="0.8" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" Classes="glass-select" ItemsSource="{Binding AvailableLyricsLanguages}" SelectedItem="{Binding LyricsLanguage}" Height="28" Padding="8,2" FontSize="11.5" />
+                <Button Grid.Column="3" Classes="glass-clear" Command="{Binding ShiftLyricsTimingCommand}" CommandParameter="-100" Content="-100ms" Padding="8,3" FontSize="11.5" />
+                <Button Grid.Column="5" Classes="glass-clear" Command="{Binding ShiftLyricsTimingCommand}" CommandParameter="100" Content="+100ms" Padding="8,3" FontSize="11.5" />
+                <Button Grid.Column="7" Classes="glass-clear" Command="{Binding InsertPlayerTimeCommand}" Content="Insert Time" Padding="9,3" FontSize="11.5" />
+              </Grid>
+              <TextBox Grid.Row="2"
+                       Classes="glass-input"
+                       Text="{Binding SubtitlesLrcText}"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       VerticalContentAlignment="Top"
+                       FontFamily="{StaticResource AeroMonoFont}"
+                       FontSize="12.5"
+                       Padding="12" />
+            </Grid>
+          </Border>
+
+          <!-- Footer Buttons -->
+          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0"
+                    Classes="metal-button"
+                    CornerRadius="16"
+                    Height="38"
+                    Padding="16,0"
+                    Command="{Binding SaveLocalSubtitlesCommand}">
+              <TextBlock Text="Save Local .LRC" FontSize="12.5" FontWeight="SemiBold" />
+            </Button>
+            <Button Grid.Column="2"
+                    Classes="metal-button under-glow-green"
+                    IsEnabled="{Binding IsDeviceConnected}"
+                    Command="{Binding UploadCustomizationToPlayerCommand}"
+                    CornerRadius="16"
+                    Height="38"
+                    Padding="20,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Upload}" Width="13" Height="13" />
+                <TextBlock Text="Upload to Player" FontSize="12.5" FontWeight="Bold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+      </ctrl:BrushedMetalPanel>
+    </Grid>
+
+    <!-- TAB 3: TAG EDITOR DUAL-PANE SPLIT WORKBENCH (SINGLE OR BATCH) -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsCustomTagsTab}" ColumnDefinitions="0.85*,18,1.15*">
+      <!-- Left Batch-Selectable Track List -->
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="16">
+        <Grid RowDefinitions="Auto,10,*">
+          <StackPanel Grid.Row="0" Spacing="8">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Text="TRACKS (SINGLE OR BATCH)" Classes="pane-section-header" Foreground="{DynamicResource AeroSkyInkBrush}" />
+              <Button Grid.Column="1"
+                      Classes="glass-clear"
+                      Command="{Binding ToggleSelectAllTagTracksCommand}"
+                      Padding="9,4">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.CheckAll}" Width="12" Height="12" />
+                  <TextBlock Text="Select All" FontSize="11" FontWeight="Medium" />
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,8,136">
+              <ComboBox Grid.Column="0"
+                        Classes="glass-select"
+                        ItemsSource="{Binding AllLocations}"
+                        SelectedItem="{Binding CustomSelectedLocation}"
+                        HorizontalAlignment="Stretch"
+                        Height="34" />
+              <Grid Grid.Column="2">
+                <TextBox Classes="glass-input"
+                         Text="{Binding CustomTrackSearch}"
+                         Watermark="Search..."
+                         Padding="28,4,26,4"
+                         Height="34"
+                         FontSize="12" />
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Search}"
+                                 Width="12"
+                                 Height="12"
+                                 Foreground="{DynamicResource AeroSubtleBrush}"
+                                 HorizontalAlignment="Left"
+                                 VerticalAlignment="Center"
+                                 Margin="10,0,0,0"
+                                 IsHitTestVisible="False" />
+                <Button Classes="glass-clear"
+                        IsVisible="{Binding CustomTrackSearch, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Command="{Binding ClearCustomSearchCommand}"
+                        Width="18"
+                        Height="18"
+                        CornerRadius="9"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="0,0,6,0"
+                        ToolTip.Tip="Clear search">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="9" Height="9" StrokeThickness="2" />
+                </Button>
+              </Grid>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,6,Auto,6,Auto">
+              <ComboBox Grid.Column="0"
+                        Classes="glass-select"
+                        ItemsSource="{Binding AvailableSortFields}"
+                        SelectedItem="{Binding CustomSortField}"
+                        Height="30"
+                        Padding="8,2"
+                        FontSize="11.5"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="Sort tracks" />
+              <Button Grid.Column="2"
+                      Classes="glass-clear"
+                      Height="30"
+                      Padding="8,0"
+                      Command="{Binding ToggleCustomSortDirectionCommand}"
+                      ToolTip.Tip="Toggle sort direction">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SortArrows}" Width="12" Height="12" />
+              </Button>
+              <Button Grid.Column="4"
+                      Classes="glass-clear"
+                      Height="30"
+                      Padding="8,0"
+                      Command="{Binding CollapseAllFoldersCommand}"
+                      CommandParameter="cust"
+                      ToolTip.ShowDelay="1000">
+                <ToolTip.Tip>
+                  <StackPanel Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="12" Height="12" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                      <TextBlock Text="Info" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AeroSkyInkBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="Collapses or expands all folder groups in the track list." TextWrapping="Wrap" MaxWidth="220" FontSize="11.5" />
+                  </StackPanel>
+                </ToolTip.Tip>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.CollapseAll}" Width="12" Height="12" />
+                  <TextBlock Text="Collapse All" FontSize="11.5" FontWeight="SemiBold" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <ListBox Grid.Row="2"
+                   Classes="aero-track-list"
+                   AutoScrollToSelectedItem="False"
+                   Padding="0,0,4,12"
+                   ItemsSource="{Binding CustomizationEntries}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="core:TrackListEntry">
+                <Panel>
+                  <Button IsVisible="{Binding IsHeader}"
+                          Classes="glass-clear"
+                          Classes.folder-selected="{Binding HasSelectedTracks}"
+                          Classes.folder-playing="{Binding HasPlayingTrack}"
+                          Classes.folder-playing-selected="{Binding HasPlayingAndSelected}"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          Padding="8,5"
+                          Margin="0,5,0,2"
+                          CornerRadius="9"
+                          Click="OnFolderHeaderClicked">
+                    <Button.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Select Folder" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectFolderByKeyCommand}" CommandParameter="{Binding HeaderKey}" />
+                        <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).RemoveFolderFromLibraryCommand}" CommandParameter="{Binding HeaderTitle}" />
+                      </ContextMenu>
+                    </Button.ContextMenu>
+                    <Grid ColumnDefinitions="Auto,8,*,12,Auto,8,Auto">
+                      <Panel Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center">
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderClosed}" Width="13" Height="13" Foreground="{DynamicResource AeroSkyInkBrush}" IsVisible="{Binding !HasPlayingTrack}" />
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="11" Height="11" IsFilled="True" Foreground="{DynamicResource AeroLimeInkBrush}" IsVisible="{Binding HasPlayingTrack}" />
+                      </Panel>
+                      <TextBlock Grid.Column="2" Text="{Binding HeaderTitle}" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="4" Text="{Binding HeaderCountLabel}" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                      <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronDown}" Width="12" Height="12" IsVisible="{Binding IsExpanded}" />
+                      <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronRight}" Width="12" Height="12" IsVisible="{Binding !IsExpanded}" />
+                    </Grid>
+                  </Button>
+
+                  <Border IsVisible="{Binding IsTrack}"
+                          Classes="track-row"
+                          Classes.selected="{Binding Track.IsTagSelected, FallbackValue=False}"
+                          Classes.playing="{Binding Track.IsNowPlaying, FallbackValue=False}"
+                          Padding="6,7"
+                          Cursor="Hand"
+                          PointerPressed="OnTagTrackPressed">
+                    <Grid ColumnDefinitions="28,*,Auto">
+                      <CheckBox Grid.Column="0"
+                                IsChecked="{Binding Track.IsTagSelected, FallbackValue=False}"
+                                VerticalAlignment="Center"
+                                Click="OnTagTrackCheckBoxClicked" />
+                      <StackPanel Grid.Column="1" Margin="4,0" Spacing="1">
+                        <TextBlock Text="{Binding Track.Title}" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Track.AlbumAndYear}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding Track.Format}" FontFamily="{StaticResource AeroMonoFont}" FontSize="10.5" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </Panel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- Right Brushed Metal Metadata Form -->
+      <ctrl:BrushedMetalPanel Grid.Column="2" IsDark="{Binding IsDark}" CornerRadiusValue="20" VerticalAlignment="Top">
+        <Grid RowDefinitions="Auto,12,Auto,16,Auto" Margin="20">
+          <Border Grid.Row="0" Classes="metal-well" Padding="14,12">
+            <StackPanel Spacing="9">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="ID3v2 / OMA &amp; SONICSTAGE METADATA" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                  <TextBlock Text="Rating:" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                  <Button Classes="metal-button" Classes.under-glow-danger="{Binding TagRatingAtLeast1}" Padding="6,2" CornerRadius="8" Command="{Binding SetTagEditRatingCommand}" CommandParameter="1" Content="1★" FontSize="11" />
+                  <Button Classes="metal-button" Classes.under-glow-danger="{Binding TagRatingAtLeast2}" Padding="6,2" CornerRadius="8" Command="{Binding SetTagEditRatingCommand}" CommandParameter="2" Content="2★" FontSize="11" />
+                  <Button Classes="metal-button" Classes.under-glow-danger="{Binding TagRatingAtLeast3}" Padding="6,2" CornerRadius="8" Command="{Binding SetTagEditRatingCommand}" CommandParameter="3" Content="3★" FontSize="11" />
+                  <Button Classes="metal-button" Classes.under-glow-danger="{Binding TagRatingAtLeast4}" Padding="6,2" CornerRadius="8" Command="{Binding SetTagEditRatingCommand}" CommandParameter="4" Content="4★" FontSize="11" />
+                  <Button Classes="metal-button" Classes.under-glow-danger="{Binding TagRatingAtLeast5}" Padding="6,2" CornerRadius="8" Command="{Binding SetTagEditRatingCommand}" CommandParameter="5" Content="5★" FontSize="11" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,12,*">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <TextBlock Text="Track Title (single track)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditTitle}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                  <TextBlock Text="Artist" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditArtist}" Height="34" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="1.6*,12,*,12,0.6*,12,0.5*">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <TextBlock Text="Album Name" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditAlbum}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                  <TextBlock Text="Genre" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditGenre}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Spacing="4">
+                  <TextBlock Text="Year" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditYear}" FontFamily="{StaticResource AeroMonoFont}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="6" Spacing="4">
+                  <TextBlock Text="Track #" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditTrackNumber}" FontFamily="{StaticResource AeroMonoFont}" Height="34" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,12,*,12,*">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <TextBlock Text="Album Artist" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditAlbumArtist}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                  <TextBlock Text="Composer" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditComposer}" Height="34" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Spacing="4">
+                  <TextBlock Text="Sort Title (TSOT)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditSortTitle}" Height="34" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,12,*">
+                <StackPanel Grid.Column="0" Spacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Artist Links (SonicStage related)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                    <Border Classes="wip-badge">
+                      <TextBlock Text="WIP" Classes="wip-badge-text" />
+                    </Border>
+                  </StackPanel>
+                  <TextBox Classes="glass-input"
+                           Text="{Binding TagEditArtistLinks}"
+                           Watermark="Post-MVP: SonicStage Artist Link DB"
+                           IsEnabled="False"
+                           Opacity="0.65"
+                           Height="34"
+                           ToolTip.Tip="Artist Link database integration is planned Post-MVP." />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                  <TextBlock Text="Comment" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBox Classes="glass-input" Text="{Binding TagEditComment}" Height="34" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,12,*,Auto,8,Auto" Margin="0,2,0,0">
+                <Border Grid.Column="0" Classes="glass-clear-box" Width="54" Height="54" CornerRadius="10" ClipToBounds="True">
+                  <Panel>
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Music}" Width="20" Height="20" Foreground="{DynamicResource AeroSubtleBrush}" IsVisible="{Binding !HasTagEditCover}" />
+                    <Image Source="{Binding TagEditCoverBitmap}" Stretch="UniformToFill" IsVisible="{Binding HasTagEditCover}" />
+                  </Panel>
+                </Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                  <TextBlock Text="COVER ARTWORK" FontSize="10" FontWeight="Bold" LetterSpacing="0.8" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBlock Text="{Binding TagEditCoverStatusText}" FontSize="11.5" Foreground="{DynamicResource AeroSubtleBrush}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <Button Grid.Column="3"
+                        Classes="glass-clear"
+                        Command="{Binding ChooseTagCoverCommand}"
+                        Content="Choose Cover..."
+                        Padding="11,6"
+                        FontSize="11.5"
+                        VerticalAlignment="Center" />
+                <Button Grid.Column="5"
+                        Classes="glass-clear"
+                        IsEnabled="{Binding HasTagEditCover}"
+                        Command="{Binding RemoveTagCoverCommand}"
+                        Content="Remove Cover"
+                        Padding="11,6"
+                        FontSize="11.5"
+                        VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="2" Classes="metal-well" Padding="14,10">
+            <Grid ColumnDefinitions="*,10,Auto,8,Auto">
+              <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="POST-MVP TAG AUTOMATION" FontSize="10" FontWeight="Bold" LetterSpacing="0.8" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                  <Border Classes="wip-badge">
+                    <TextBlock Text="WIP" Classes="wip-badge-text" />
+                  </Border>
+                </StackPanel>
+                <TextBlock Text="Online lookup &amp; snapshot backups" FontSize="11" Foreground="{DynamicResource AeroSubtleBrush}" />
+              </StackPanel>
+              <Button Grid.Column="2"
+                      Classes="glass-clear"
+                      Command="{Binding ShowPostMvpNoticeCommand}"
+                      CommandParameter="Auto-Lookup Metadata (Post-MVP)"
+                      Padding="11,6">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="Auto-Lookup..." FontSize="11.5" />
+                  <Border Classes="wip-badge">
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                  </Border>
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="4"
+                      Classes="glass-clear"
+                      Command="{Binding ShowPostMvpNoticeCommand}"
+                      CommandParameter="Restore Metadata Backup (Post-MVP)"
+                      Padding="11,6">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="Backup / Restore" FontSize="11.5" />
+                  <Border Classes="wip-badge">
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                  </Border>
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+
+          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0"
+                    Classes="metal-button"
+                    CornerRadius="16"
+                    Height="38"
+                    Padding="16,0"
+                    Command="{Binding SaveLocalTagsCommand}">
+              <TextBlock Text="{Binding TagSaveButtonLabel}" FontSize="12.5" FontWeight="SemiBold" />
+            </Button>
+            <Button Grid.Column="2"
+                    Classes="metal-button under-glow-green"
+                    IsEnabled="{Binding IsDeviceConnected}"
+                    Command="{Binding UploadCustomizationToPlayerCommand}"
+                    CornerRadius="16"
+                    Height="38"
+                    Padding="20,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Upload}" Width="13" Height="13" />
+                <TextBlock Text="Upload to Player" FontSize="12.5" FontWeight="Bold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+      </ctrl:BrushedMetalPanel>
+    </Grid>
+  </Grid>
+</UserControl>

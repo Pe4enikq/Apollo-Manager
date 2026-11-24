@@ -1,67 +1,82 @@
 # Apollo Manager
 
-> **Apollo Manager** is a modern, modular desktop utility for Sony Network Walkman and ATRAC players (1999–2010), replacing Sony SonicStage, OpenMG Jukebox, CONNECT Player, MP3 File Manager, Simple Burner, and customization tools.
+> **Beta (`v0.1.0-beta.1`)** — A modern, standalone desktop manager for classic Sony Network Walkman players (Windows 10/11), built from scratch to replace Sony SonicStage / X-app, OpenMG Jukebox, and MP3 File Manager.
 
 ---
 
-## Core Design Principles
+## What Apollo Manager Does
 
-- **Strict Three-Tier Modularity (L1 / L2 / L3):**
-  - **L1 (`L1.Core`):** Always-resident spine (`Orchestrator`, `DevicePoller`, `FileManager`). Contains zero device-specific binary offsets or codec logic.
-  - **L2 (`L2.Engines`):** Headless engines (`Transport.Msc`, `Database.OmgV1/V2`, `Crypto.OpenMG`, `Codec.Pipeline`, `Custom.NwmEngine`, `Telemetry.Dumper`) loaded dynamically on demand via `.NET AssemblyLoadContext`.
-  - **L3 (`L3.Presentation`):** Avalonia UI + SkiaSharp views and optional feature studios (`AppShell`, `ScreensaverStudio`, `LyricsSubStudio`, `MetadataStudio`, `DumpWizard`) styled with hardware-matched 2007 "Frutiger Aero" aesthetics.
-- **Contract-Driven Decoupling:** L2 and L3 plugins never reference each other directly. All shared DTOs, events, and interfaces live in `Walkman.Contracts`, routed through the L1 Mediator/Event Bus.
-- **Permissive & Clean-Room Engineering:** Built on C# 12 / `.NET 8/9` using audited MIT / BSD / Apache-2.0 / Public Domain dependencies and clean-room `Span<byte>` binary parsers. Any LGPL tools (`atracdenc`, `libmp3lame.dll`) remain isolated external dynamic/CLI components.
+- **Direct Music Transfers (`PC <-> Walkman`):** Transfer MP3 and ATRAC3plus (`48–352 kbps`, `44.1 kHz` Stereo) tracks directly to your player's `OMGAUDIO` database with full tag preservation, drag-and-drop staging and custom collection/folder ordering.
+- **Built-In Standalone ATRAC3plus Encoder:** Encodes `48–352 kbps` ATRAC3plus natively in C#. On Gen 3 MagicGate players, Apollo safely recycles existing signed `0x0001` slots on your player while preserving `MACLIST0.DAT` integrity.
+- **Hardware Safety First:** Automatic pre-write `OMGAUDIO` table backups, FAT16 Boot Parameter Block (BPB) protection against Windows-format `FORMAT ERROR` bricks, disk flushes, and strict volume-serial verification.
+- **My Library & Audio Player:** Browse your local music library (`.mp3`, `.flac`, `.wav`, `.ogg`, `.opus`, `.oma`) with instant playback, `.LRC` synchronized lyrics, and a built-in **Tags & Covers** editor.
+- **Batch Codec Converter:** Convert local tracks between ATRAC3plus, MP3, WAV, and FLAC.
+- **`.NWM` Screensaver Utilities:** Import, validate, and export `.nwm` Walkman OLED animations (`NW-E400/E500`, `NW-A600`, `NW-A1000/A3000`).
+- **Community Dump Wizard:** Export a scoped diagnostic `.zip` (USB IDs, FAT BPB info, Walkman system folder listing, and `OMGAUDIO` table headers — no tracks and zero unrelated personal USB files) to help add support for new Walkman models.
 
 ---
 
-## Planned Solution Structure
+## Supported Walkman Models
 
-```text
-WalkmanUtility.sln
-├── manifests/
-│   └── devices.json                       # Declarative database of Sony Walkman models & capabilities
-├── src/
-│   ├── Walkman.Contracts/                 # Shared interfaces, DTOs, Events, DeviceProfile models
-│   ├── L1.Core/
-│   │   ├── Walkman.L1.Orchestrator/       # DI Container, AssemblyLoadContext Plugin Loader, EventBus
-│   │   ├── Walkman.L1.DevicePoller/       # USB VID/PID watcher, Volume scanner, Manifest matcher
-│   │   └── Walkman.L1.FileManager/        # Local Library index, Device VFS abstraction, Sync Queue
-│   ├── L2.Engines/                        # Headless plugins (loaded dynamically on demand)
-│   │   ├── Walkman.L2.Transport.Msc/      # Mass Storage VFS driver
-│   │   ├── Walkman.L2.Transport.NetUsb/   # Legacy WinUSB driver (Post-MVP Phase 4)
-│   │   ├── Walkman.L2.Transport.Optical/  # ATRAC CD ISO9660 builder (Post-MVP Phase 4)
-│   │   ├── Walkman.L2.Database.OmgV1/     # Binary parser/writer for NW-E400/E500/HD series
-│   │   ├── Walkman.L2.Database.OmgV2/     # Extended parser for NW-A1000/A800/S700 (Post-MVP Phase 2)
-│   │   ├── Walkman.L2.Database.Mp3Fm/     # Lightweight MP3FM table writer (Post-MVP)
-│   │   ├── Walkman.L2.Crypto.OpenMG/      # EA3/ea3 header, DvId.dat / Mqkl.dat key obfuscation & XOR/DES
-│   │   ├── Walkman.L2.Codec.Pipeline/     # Transcoding & wrapping pipeline (MP3, ATRAC3, PCM, etc.)
-│   │   ├── Walkman.L2.ContentAware/       # LRC sync, subtitle alignment, Kanji/Cyrillic transliterator
-│   │   ├── Walkman.L2.Custom.NwmEngine/   # .nwm 1-bit animation packer/unpacker
-│   │   └── Walkman.L2.Telemetry.Dumper/   # Read-only ~50 KB diagnostic zip generator
-│   └── L3.Presentation/                   # User-visible UI & feature studios
-│       ├── Walkman.L3.AppShell/           # Avalonia main window, Frutiger Aero theme, Dual-Pane UI
-│       ├── Walkman.L3.ScreensaverStudio/  # Visual .nwm editor & live OLED simulator
-│       ├── Walkman.L3.LyricsSubStudio/    # Visual LRC & subtitle timeline editor (Post-MVP Phase 3)
-│       ├── Walkman.L3.MetadataStudio/     # Tag editor, Cover Art sanitizer, Transliterator (Post-MVP Phase 3)
-│       └── Walkman.L3.DumpWizard/         # Community device dump submission UI
-└── docs/
-    └── ARCHITECTURE_AND_AUDIT.md          # Stack reconciliation, license audit & binary invariants
+| Series | Models | Support Tier | Notes |
+| :--- | :--- | :---: | :--- |
+| **NW-E400** | `NW-E403`, `NW-E405`, `NW-E407` | **Verified** | Tested on live hardware (MP3, ATRAC3+ via slot recycling, `.NWM` upload, delete/reorder). |
+| **NW-E500** | `NW-E503`, `NW-E505`, `NW-E507` | **Verified** | Tested on live hardware (MP3, ATRAC3+ via slot recycling, delete/reorder). |
+| **NW-HD3 / HD5** | `NW-HD3`, `NW-HD5` | **Experimental** | Pre-seeded `OMGAUDIO` v1 profile — not yet hardware-verified. Back up your drive before writing. |
+| **NW-A600** | `NW-A605`, `NW-A607`, `NW-A608` | **Experimental** | Pre-seeded profile — not yet hardware-verified. Back up before writing. |
+| **NW-A1000–A3000** | `NW-A1000`, `NW-A1200`, `NW-A3000` | **Experimental** | Pre-seeded profile — not yet hardware-verified. Back up before writing. |
+| **NW-E000** | `NW-E002`, `NW-E003`, `NW-E005` | **Experimental** | Pre-seeded profile — not yet hardware-verified. Back up before writing. |
+
+> **Have an untested or unrecognized Sony Walkman?** Connect it, open **Device & System -> Dump Wizard**, and submit the generated diagnostic `.zip` via our [Walkman Telemetry Submission Form](https://tally.so/r/ArBeRN) (or attach it to a GitHub Issue).
+
+---
+
+## Download & Quick Start (Windows 10 / 11 x64)
+
+Both release packages are **self-contained** — you do **not** need to install `.NET` or SonicStage.
+
+1. Download either package from **GitHub Releases**:
+   - **Portable:** `ApolloManager-0.1.0-beta.1-win-x64-portable.zip` — extract anywhere and run **`Apollo Manager.exe`**.
+   - **Installer:** `ApolloManager-0.1.0-beta.1-win-x64-setup.exe` — installs with Start Menu / Desktop shortcuts and a standard Windows Uninstaller.
+   - *(Optional)* Verify your download against **`SHA256SUMS.txt`**.
+2. **Windows SmartScreen Notice:** Because Apollo Manager is a free, unsigned open-source beta, Windows Defender SmartScreen may display *"Windows protected your PC"* on first run. Click **More info -> Run anyway** after verifying the SHA-256 checksum.
+3. **Back Up Your Player First:** Before making your first transfer on any vintage Walkman, copy its entire USB drive to a safe backup folder on your PC.
+4. **Connect & Transfer:** Plug in your Walkman over USB, select it in **File Manager**, drag tracks or folders from your PC library, and click **Transfer** (or **Update** after reordering collections/tags).
+   - *Note on `NW-E400`/`NW-E500` ATRAC3plus (`0x0001`):* MP3 transfers work on any initialized player. Native ATRAC3plus transfers recycle signed "slots" already present on the player (if your player was freshly formatted from its menu with zero slots, transfer placeholder ATRAC3+ tracks once in SonicStage to allocate new slots, or use MP3 mode).
+
+> **Beta Notice:** Apollo Manager `v0.1.0-beta.1` is an early beta. Features marked with a **`WIP`** badge (such as the interactive OLED pixel editor, Firmware tools, Artist Link, and AAL encoding) are planned for later releases.
+
+---
+
+## Building From Source
+
+Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) on Windows x64:
+
+```powershell
+dotnet test "WalkmanUtility.sln" -c Release
+.\build\package-win-x64.ps1
 ```
 
----
+> *External codec binaries (`codecs/libmp3lame.dll`, `tools/atracdenc/atracdenc.exe`, and `tools/vgmstream/vgmstream-cli.exe`) are excluded from Git and distributed in the official Release archives — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for exact upstream versions and download links.*
 
-## First MVP ("Project E403") Definition of Done
-
-To qualify as the first MVP, **Apollo Manager** must reliably demonstrate:
-1. **Device Communication & Model Identification:** Detect connected Sony Walkman hardware (`0x054C`), inspect its filesystem/descriptors, and accurately resolve the connected model profile (`NW-E400/E500` primary target + telemetry dump support for unknown models).
-2. **Database Integrity (`OMGAUDIO` v1):** Read, update, and rebuild `OMGAUDIO` binary index tables (`00GTRLST.DAT`, `01TREE01..04.DAT`, `02TREINF.DAT`, `03GINF01..04.DAT`, `04CNTINF.DAT`, `05CIDLST.DAT`) cleanly without causing `NO DATA` or `FORMAT ERROR` on hardware.
-3. **100% Bidirectional File & Codec Interchange:** Transfer music `PC <-> Player` and `Player <-> Player` with tag preservation across supported codecs (fast pass-through MP3-in-OMA wrapping, LAME MP3 transcoding, `atracdenc` ATRAC3 encoding, and full `.oma` decoding via `vgmstream`; see [`ROADMAP.md`](ROADMAP.md) for the MVP vs. Post-MVP ATRAC3plus strategy).
-4. **Visual Animation Editor Prototype (`L3.ScreensaverStudio`):** Interactive `120×36` logical OLED (packed `48×120` 3-block column-stripe `.nwm`, `0xEC01`) 1-bit pixel art & timeline prototype with GIF/PNG/`.aseprite` dithering import, simulated OLED glow preview, and `.nwm` export/deploy to the player's `SCREEN` / `NWWM-SCR` folder.
+Build outputs are staged in `dist/`. For engineering and dependency governance details, see [docs/ARCHITECTURE_AND_AUDIT.md](docs/ARCHITECTURE_AND_AUDIT.md).
 
 ---
 
-## Documentation
+## Acknowledgments & Prior Art
 
-- [Project Roadmap (`ROADMAP.md`)](ROADMAP.md)
-- [Architecture Reconciliation & Dependency Audit (`docs/ARCHITECTURE_AND_AUDIT.md`)](docs/ARCHITECTURE_AND_AUDIT.md)
+Apollo Manager stands on the shoulders of decades of open-source Walkman, ATRAC, and MiniDisc preservation work:
+
+- **[minidisc.wiki](https://www.minidisc.wiki/)** — Comprehensive hardware, format, and Sony Walkman/MiniDisc community documentation.
+- **[FFmpeg](https://ffmpeg.org/)** — Publicly documented ATRAC3/ATRAC3plus and OpenMG `.oma` container/format specifications (`omadec` / `atrac3plus`).
+- **[vgmstream](https://github.com/vgmstream/vgmstream)** — Universal game & proprietary audio decoding (`.oma` playback/export support).
+- **[atracdenc](https://github.com/dcherednik/atracdenc)** — Open-source ATRAC1/ATRAC3 encoder and psychoacoustic reference work.
+- **[JSymphonic](https://sourceforge.net/projects/symphonic/)**, **[linux-minidisc](https://github.com/glaubitz/linux-minidisc)**, and **[netmd-js / Web MiniDisc Pro](https://github.com/cybercase/netmd-js)** — Pioneering open-source `OMGAUDIO` and Sony portable audio interoperability projects.
+- **[nwm-manager](https://github.com/asivery/nwm-manager)** — Documentation of Sony Walkman OLED animation containers.
+
+---
+
+## License & Third-Party Notices
+
+- Apollo Manager's source code is licensed under the **MIT License** — see [LICENSE](LICENSE).
+- Third-party libraries and external codec tools (`LAME`, `atracdenc`, `vgmstream`, `FFmpeg`, `mpg123`, `Xiph.Org` codecs, and managed NuGet packages) are documented with full upstream source links and license texts in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [codecs/LICENSE_BOUNDARY.md](codecs/LICENSE_BOUNDARY.md), and [tools/LICENSE_BOUNDARY.md](tools/LICENSE_BOUNDARY.md).

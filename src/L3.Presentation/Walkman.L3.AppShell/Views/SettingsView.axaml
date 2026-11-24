@@ -1,0 +1,197 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.SettingsView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,18,*">
+    <StackPanel Grid.Row="0" Spacing="2">
+      <TextBlock Text="Settings" FontSize="22" FontWeight="Bold" />
+      <TextBlock Text="Persisted preferences for app appearance, navigation layout, Demo Mode, and local folders."
+                 FontSize="12.5"
+                 Foreground="{DynamicResource AeroMutedBrush}" />
+    </StackPanel>
+
+    <Border Grid.Row="2" Classes="glass-frosted" Padding="24">
+      <ScrollViewer Padding="6,4,10,12">
+        <StackPanel Spacing="18" Margin="4">
+          <!-- Appearance Theme -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Appearance Theme" FontSize="14" FontWeight="SemiBold" />
+              <TextBlock Text="Switch between Light Aero and Dark Graphite (Ctrl+T)." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="metal-button"
+                    CornerRadius="16"
+                    Padding="16,8"
+                    Command="{Binding ToggleThemeCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Moon}" Width="14" Height="14" IsVisible="{Binding !IsDark}" />
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Sun}" Width="14" Height="14" IsVisible="{Binding IsDark}" />
+                <TextBlock Text="{Binding ThemePillLabel}" FontSize="12" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Demo Mode Overlay Isolation Toggle -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Demo Mode Overlay" FontSize="14" FontWeight="SemiBold" />
+              <TextBlock Text="Enables demo players and preview sample catalog without altering local disk or live USB hardware. (For debug purposes only)" FontSize="13" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="metal-button"
+                    Classes.under-glow-green="{Binding IsDemoModeEnabled}"
+                    CornerRadius="16"
+                    Padding="16,8"
+                    Command="{Binding ToggleDemoModeCommand}">
+              <TextBlock Text="{Binding DemoModeStatusLabel}" FontSize="12" FontWeight="SemiBold" />
+            </Button>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Workspace Navigation Mode: Edge Jog Dial vs Compact Sidebar Rail -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Workspace Navigation Style" FontSize="14" FontWeight="SemiBold" />
+              <TextBlock Text="Choose between Radial Edge Jog Dial (toggle via Tab) or Compact Vertical Sidebar." FontSize="13" Foreground="{DynamicResource AeroMutedBrush}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="metal-button"
+                    Classes.under-glow-blue="{Binding UseSidebarRail}"
+                    CornerRadius="16"
+                    Padding="16,8"
+                    Command="{Binding ToggleNavigationStyleCommand}">
+              <TextBlock Text="{Binding NavStyleLabel}" FontSize="12" FontWeight="SemiBold" />
+            </Button>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Cold-Start Intro Animation Toggle -->
+          <Grid ColumnDefinitions="*,Auto,8,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Start Hub Blob Intro Animation" FontSize="14" FontWeight="SemiBold" />
+              <TextBlock Text="Orbiting liquid blobs automatically morph into the Medallion on mouse move." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="metal-button"
+                    Classes.under-glow-green="{Binding EnableColdStartIntro}"
+                    CornerRadius="16"
+                    Padding="16,8"
+                    Command="{Binding ToggleColdStartIntroCommand}">
+              <Panel>
+                <TextBlock Text="Enabled" IsVisible="{Binding EnableColdStartIntro}" FontSize="12" FontWeight="SemiBold" />
+                <TextBlock Text="Skip to Medallion" IsVisible="{Binding !EnableColdStartIntro}" FontSize="12" FontWeight="SemiBold" />
+              </Panel>
+            </Button>
+            <Button Grid.Column="3"
+                    Classes="glass-clear"
+                    CornerRadius="16"
+                    Padding="14,8"
+                    Command="{Binding ReplayIntroCommand}"
+                    Content="Replay Intro"
+                    FontSize="12"
+                    FontWeight="SemiBold" />
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Directories -->
+          <Grid ColumnDefinitions="*,18,*">
+            <StackPanel Grid.Column="0" Spacing="6">
+              <TextBlock Text="Default Music Library Folder" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource AeroMutedBrush}" />
+              <Grid ColumnDefinitions="*,8,Auto">
+                <TextBox Grid.Column="0" Classes="glass-input" Text="{Binding DefaultMusicFolder}" IsReadOnly="True" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Height="38" />
+                <Button Grid.Column="2" Classes="glass-clear" Width="40" Height="38" Padding="0" Command="{Binding BrowseDefaultLibrarySettingsCommand}" ToolTip.Tip="Browse default music folder">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderOpen}" Width="15" Height="15" />
+                </Button>
+              </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Spacing="6">
+              <TextBlock Text="Converted Output Folder" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource AeroMutedBrush}" />
+              <Grid ColumnDefinitions="*,8,Auto">
+                <TextBox Grid.Column="0" Classes="glass-input" Text="{Binding ConvertedOutputFolder}" IsReadOnly="True" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Height="38" />
+                <Button Grid.Column="2" Classes="glass-clear" Width="40" Height="38" Padding="0" Command="{Binding BrowseConvertedFolderSettingsCommand}" ToolTip.Tip="Browse converted output folder">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderOpen}" Width="15" Height="15" />
+                </Button>
+              </Grid>
+            </StackPanel>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Reduced Glow & USB Watcher -->
+          <Grid ColumnDefinitions="*,18,*">
+            <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="Low-Spec / Reduced Glow Mode" FontSize="13.5" FontWeight="SemiBold" />
+                <TextBlock Text="Softens ambient glass diffusion overhead." FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Classes="metal-button"
+                      Classes.under-glow-green="{Binding ReducedBlur}"
+                      CornerRadius="16"
+                      Padding="14,7"
+                      Command="{Binding ToggleReducedBlurCommand}">
+                <Panel>
+                  <TextBlock Text="Enabled" IsVisible="{Binding ReducedBlur}" FontSize="12" FontWeight="SemiBold" />
+                  <TextBlock Text="Disabled" IsVisible="{Binding !ReducedBlur}" FontSize="12" FontWeight="SemiBold" />
+                </Panel>
+              </Button>
+            </Grid>
+
+            <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="USB Mass Storage Watcher" FontSize="13.5" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding UsbWatchStatus}" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Foreground="{DynamicResource AeroSkyInkBrush}" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Classes="metal-button"
+                      CornerRadius="16"
+                      Padding="14,7"
+                      Command="{Binding RescanUsbHardwareCommand}"
+                      Content="Scan Now"
+                      FontSize="12"
+                      FontWeight="SemiBold" />
+            </Grid>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+          <!-- Post-MVP Chameleon Casing Accent Theme (UI-02) -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Chameleon Casing Accent Theme" FontSize="13.5" FontWeight="SemiBold" />
+                <Border Classes="wip-badge">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                    <TextBlock Text="WIP · POST-MVP" Classes="wip-badge-text" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <TextBlock Text="Automatically matches Apollo's accent glow to your connected Walkman's hardware casing color." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="glass-clear"
+                    CornerRadius="16"
+                    Padding="14,7"
+                    Command="{Binding ShowPostMvpNoticeCommand}"
+                    CommandParameter="Chameleon Casing Accent Theme (UI-02)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="12" Height="12" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                <TextBlock Text="Auto-Match" FontSize="12" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

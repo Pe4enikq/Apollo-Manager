@@ -3,6 +3,7 @@
   "Devices": [
     {
       "SeriesId": "NW-E400",
+      "SupportStatus": "Verified",
       "DisplayName": "Sony Network Walkman NW-E400 Series (Perfume Bottle OLED)",
       "Generation": "Gen3_OmgV1",
       "Transport": "MassStorage",
@@ -91,7 +92,7 @@
         },
         {
           "Codec": "Atrac3Plus",
-          "SupportedBitratesKbps": [48, 64, 256],
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
           "AllowedSampleRatesHz": [44100],
           "SupportsVbr": false,
           "RequiredEncryption": "MagicGateLsi_0x0001"
@@ -125,10 +126,17 @@
       ],
       "SupportedL3Modules": [
         "L3.ScreensaverStudio"
-      ]
+      ],
+      "RequiresScsiAuthForDvIdFallback": true,
+      "StrictFactoryFat16Bpb": {
+        "RequiredReservedSectors": 1,
+        "WarnOnWindowsOem": true
+      },
+      "BootstrapSchemaProfile": "OmgV1_E400_34Slot"
     },
     {
       "SeriesId": "NW-E500",
+      "SupportStatus": "Verified",
       "DisplayName": "Sony Network Walkman NW-E500 Series (Perfume Bottle FM OLED)",
       "Generation": "Gen3_OmgV1",
       "Transport": "MassStorage",
@@ -210,7 +218,7 @@
         },
         {
           "Codec": "Atrac3Plus",
-          "SupportedBitratesKbps": [48, 64, 256],
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
           "AllowedSampleRatesHz": [44100],
           "SupportsVbr": false,
           "RequiredEncryption": "MagicGateLsi_0x0001"
@@ -244,10 +252,17 @@
       ],
       "SupportedL3Modules": [
         "L3.ScreensaverStudio"
-      ]
+      ],
+      "RequiresScsiAuthForDvIdFallback": true,
+      "StrictFactoryFat16Bpb": {
+        "RequiredReservedSectors": 1,
+        "WarnOnWindowsOem": true
+      },
+      "BootstrapSchemaProfile": "OmgV1_E500_45Slot"
     },
     {
       "SeriesId": "NW-HD3-HD5",
+      "SupportStatus": "Experimental",
       "DisplayName": "Sony Network Walkman NW-HD3 / NW-HD5 HDD Series",
       "Generation": "Gen3_OmgV1",
       "Transport": "MassStorage",
@@ -315,7 +330,7 @@
         },
         {
           "Codec": "Atrac3Plus",
-          "SupportedBitratesKbps": [48, 64, 256],
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
           "AllowedSampleRatesHz": [44100],
           "SupportsVbr": false,
           "RequiredEncryption": "MagicGateLsi_0x0001"
@@ -338,6 +353,7 @@
     },
     {
       "SeriesId": "NW-A600",
+      "SupportStatus": "Experimental",
       "DisplayName": "Sony Network Walkman NW-A600 Series (Artist Link OLED)",
       "Generation": "Gen4_OmgV2_Connect",
       "Transport": "MassStorage",
@@ -407,7 +423,7 @@
         },
         {
           "Codec": "Atrac3Plus",
-          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320],
+          "SupportedBitratesKbps": [48, 64, 96, 128, 160, 192, 256, 320, 352],
           "AllowedSampleRatesHz": [44100],
           "SupportsVbr": false,
           "RequiredEncryption": "Unprotected_0xFFFF"
@@ -445,6 +461,7 @@
     },
     {
       "SeriesId": "NW-A1000-A3000",
+      "SupportStatus": "Experimental",
       "DisplayName": "Sony Network Walkman NW-A1000 / NW-A1200 / NW-A3000 Series",
       "Generation": "Gen4_OmgV2_Connect",
       "Transport": "MassStorage",
@@ -564,6 +581,7 @@
     },
     {
       "SeriesId": "NW-E000",
+      "SupportStatus": "Experimental",
       "DisplayName": "Sony Network Walkman NW-E002 / NW-E003 / NW-E005 USB Stick Series",
       "Generation": "Gen5_FlashStick",
       "Transport": "MassStorage",

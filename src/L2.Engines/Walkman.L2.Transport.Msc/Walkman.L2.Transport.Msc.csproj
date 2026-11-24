@@ -3,6 +3,7 @@
     <AssemblyName>Walkman.L2.Transport.Msc</AssemblyName>
     <RootNamespace>Walkman.L2.Transport.Msc</RootNamespace>
     <Description>L2 Mass Storage FAT16/FAT32 VFS Driver (implemented in M1).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>

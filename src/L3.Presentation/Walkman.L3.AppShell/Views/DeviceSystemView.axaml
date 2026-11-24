@@ -1,0 +1,465 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.DeviceSystemView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,16,*">
+    <!-- Top Header & 4-Tab Bar -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Spacing="2">
+        <TextBlock Text="Device &amp; System" FontSize="22" FontWeight="Bold" />
+        <TextBlock Text="USB pairing, Post-MVP firmware servicing, diagnostic dump, and device info."
+                   FontSize="12.5"
+                   Foreground="{DynamicResource AeroMutedBrush}" />
+      </StackPanel>
+
+      <Border Grid.Column="1"
+              Classes="glass-clear-box"
+              CornerRadius="16"
+              Padding="4"
+              VerticalAlignment="Bottom">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Classes="aero-tab"
+                  Classes.active="{Binding IsDevicePairTab}"
+                  Command="{Binding SetDeviceTabCommand}"
+                  CommandParameter="pair"
+                  Content="Pair &amp; Sync" />
+          <Button Classes="aero-tab"
+                  Classes.active="{Binding IsDeviceFirmwareTab}"
+                  Command="{Binding SetDeviceTabCommand}"
+                  CommandParameter="firmware">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Firmware" FontSize="12.5" />
+              <Border Classes="wip-badge">
+                <TextBlock Text="WIP" Classes="wip-badge-text" />
+              </Border>
+            </StackPanel>
+          </Button>
+          <Button Classes="aero-tab"
+                  Classes.active="{Binding IsDeviceDumpTab}"
+                  Command="{Binding SetDeviceTabCommand}"
+                  CommandParameter="dump"
+                  Content="Dump Wizard" />
+          <Button Classes="aero-tab"
+                  Classes.active="{Binding IsDeviceTechTab}"
+                  Command="{Binding SetDeviceTabCommand}"
+                  CommandParameter="tech"
+                  Content="Technical Info" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- TAB 1: PAIR & SYNC -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsDevicePairTab}" RowDefinitions="Auto,14,*">
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0"
+                   Text="{Binding UsbWatchStatus}"
+                   FontSize="12"
+                   Foreground="{DynamicResource AeroSkyInkBrush}"
+                   VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Classes="glass-clear" Command="{Binding RescanUsbHardwareCommand}" Content="Rescan USB" FontSize="12" FontWeight="SemiBold" />
+          <Button Classes="glass-clear" Command="{Binding MountFolderFixtureCommand}" Content="Mount Folder..." FontSize="12" FontWeight="SemiBold" />
+          <Button Classes="glass-clear"
+                  IsVisible="{Binding IsDeviceConnected}"
+                  Command="{Binding SafeEjectCommand}"
+                  Padding="14,7"
+                  CornerRadius="16">
+            <TextBlock FontSize="12" FontWeight="SemiBold">
+              <Run Text="Safely Eject " />
+              <Run Text="{Binding ConnectedDevice.Model}" />
+            </TextBlock>
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <ScrollViewer Grid.Row="2" Padding="0,0,6,12">
+        <ItemsControl ItemsSource="{Binding DeviceCards}" VerticalAlignment="Top">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="3" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:WalkmanDeviceCardViewModel">
+              <Border Classes="glass-frosted device-card"
+                      Classes.connected="{Binding IsConnected}"
+                      Margin="0,0,14,14"
+                      Padding="20"
+                      MinHeight="330">
+                <Grid RowDefinitions="*,Auto">
+                  <StackPanel Grid.Row="0" Spacing="12">
+                    <Grid ColumnDefinitions="*,8,Auto">
+                      <StackPanel Grid.Column="0" Spacing="3">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                          <TextBlock Grid.Column="0"
+                                     Text="{Binding Profile.SeriesAndYear}"
+                                     FontSize="11.5"
+                                     FontWeight="SemiBold"
+                                     LetterSpacing="0.8"
+                                     Foreground="{DynamicResource AeroSkyInkBrush}"
+                                     TextTrimming="CharacterEllipsis"
+                                     VerticalAlignment="Center" />
+                          <Border Grid.Column="1" Classes="wip-badge" IsVisible="{Binding Profile.IsExperimentalProfile}" Margin="6,0,0,0">
+                            <TextBlock Text="EXPERIMENTAL" Classes="wip-badge-text" />
+                          </Border>
+                          <Border Grid.Column="2" Classes="demo-badge" IsVisible="{Binding Profile.IsDemoDevice}" Margin="6,0,0,0">
+                            <TextBlock Text="DEMO" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                          </Border>
+                        </Grid>
+                        <TextBlock FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis">
+                          <Run Text="Sony " />
+                          <Run Text="{Binding Profile.Model}" />
+                        </TextBlock>
+                      </StackPanel>
+                      <Border Grid.Column="2"
+                              Classes="glass-clear-box"
+                              Width="36"
+                              Height="36"
+                              CornerRadius="18"
+                              VerticalAlignment="Top">
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Disc}" Width="17" Height="17" />
+                      </Border>
+                    </Grid>
+
+                    <StackPanel Spacing="9">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Battery}" Width="14" Height="14" Foreground="{DynamicResource AeroMutedBrush}" />
+                          <TextBlock Text="Battery" FontSize="12.5" Foreground="{DynamicResource AeroMutedBrush}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" FontFamily="{StaticResource AeroMonoFont}" FontSize="12.5" FontWeight="Medium">
+                          <Run Text="{Binding Profile.BatteryPct}" />
+                          <Run Text="%" />
+                        </TextBlock>
+                      </Grid>
+                      <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Cpu}" Width="14" Height="14" Foreground="{DynamicResource AeroMutedBrush}" />
+                          <TextBlock Text="Firmware" FontSize="12.5" Foreground="{DynamicResource AeroMutedBrush}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" FontFamily="{StaticResource AeroMonoFont}" FontSize="12.5" FontWeight="Medium">
+                          <Run Text="v" />
+                          <Run Text="{Binding Profile.Firmware}" />
+                        </TextBlock>
+                      </Grid>
+                      <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
+                      <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="Display" FontSize="12.5" Foreground="{DynamicResource AeroMutedBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Profile.ScreenResolution}"
+                                   FontFamily="{StaticResource AeroMonoFont}"
+                                   FontSize="11.5"
+                                   HorizontalAlignment="Right" />
+                      </Grid>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5" Margin="0,4,0,0">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Storage" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Profile.StorageFormatted}" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" />
+                      </Grid>
+                      <ProgressBar Minimum="0"
+                                   Maximum="100"
+                                   Value="{Binding Profile.StorageUsedPercent}"
+                                   Height="6"
+                                   CornerRadius="3"
+                                   Background="{DynamicResource TroughBgBrush}"
+                                   Foreground="{StaticResource AeroAccentGradientBrush}" />
+                    </StackPanel>
+
+                    <TextBlock FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap">
+                      <Run Text="Codecs: " />
+                      <Run Text="{Binding Profile.CodecsFormatted}" />
+                    </TextBlock>
+
+                    <TextBlock IsVisible="{Binding ShowSlotPoolInfo}"
+                               Text="{Binding SlotPoolSummary}"
+                               FontFamily="{StaticResource AeroMonoFont}"
+                               FontSize="10.5"
+                               Foreground="{DynamicResource AeroSkyInkBrush}" />
+                  </StackPanel>
+
+                  <Button Grid.Row="1"
+                          Classes="metal-button"
+                          Classes.under-glow-green="{Binding IsConnected}"
+                          Margin="0,20,0,0"
+                          CornerRadius="18"
+                          Height="38"
+                          HorizontalAlignment="Stretch"
+                          Click="OnPairCardButtonClicked">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Usb}" Width="14" Height="14" />
+                      <TextBlock Text="{Binding ButtonLabel}" FontSize="13" FontWeight="SemiBold" />
+                    </StackPanel>
+                  </Button>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- TAB 2: FIRMWARE (POST-MVP STRUCTURED FACEPLATE) -->
+    <ctrl:BrushedMetalPanel Grid.Row="2"
+                            IsVisible="{Binding IsDeviceFirmwareTab}"
+                            IsDark="{Binding IsDark}"
+                            CornerRadiusValue="20"
+                            VerticalAlignment="Top"
+                            MaxWidth="940"
+                            HorizontalAlignment="Left">
+      <Grid RowDefinitions="Auto,16,Auto,16,Auto,18,Auto" Margin="26,24">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="3">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="FIRMWARE FLASH &amp; BOOTLOADER PATCHER"
+                         FontSize="11.5"
+                         FontWeight="SemiBold"
+                         LetterSpacing="1"
+                         Foreground="{DynamicResource AeroMutedBrush}" />
+              <Border Classes="wip-badge">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                  <TextBlock Text="WIP · POST-MVP" Classes="wip-badge-text" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+            <TextBlock FontSize="18" FontWeight="Bold">
+              <Run Text="Target Hardware: " />
+              <Run Text="{Binding FirmwareTargetModel}" />
+              <Run Text=" · " />
+              <Run Text="{Binding FirmwareVersionText}" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </TextBlock>
+          </StackPanel>
+
+          <Border Grid.Column="1" Classes="glass-clear-box" CornerRadius="14" Padding="10,6" VerticalAlignment="Center">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Cpu}" Width="20" Height="20" Foreground="{DynamicResource AeroSkyInkBrush}" />
+          </Border>
+        </Grid>
+
+        <!-- Readiness Checklist Well -->
+        <Border Grid.Row="2" Classes="metal-well" Padding="16,12">
+          <Grid ColumnDefinitions="*,14,*,14,*">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="1. USB HANDSHAKE" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="{Binding FirmwareDeviceReadinessText}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+              <TextBlock Text="2. BATTERY &gt;= 40%" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="{Binding FirmwareBatteryReadinessText}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel Grid.Column="4" Spacing="4">
+              <TextBlock Text="3. PACKAGE CRC32" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="Post-MVP Verifier Ready" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- Firmware Package Picker Well -->
+        <Border Grid.Row="4" Classes="metal-well" Padding="16,12">
+          <Grid ColumnDefinitions="*,12,Auto">
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Text="FIRMWARE BINARY IMAGE (.BIN / .FW / .UPG)" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="{Binding FwPackagePath}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="glass-clear" Command="{Binding BrowseFirmwarePackageCommand}" Content="Select Package..." Padding="14,7" />
+          </Grid>
+        </Border>
+
+        <!-- Patch Flags & Aligned Right Upload to Player -->
+        <Grid Grid.Row="6" ColumnDefinitions="*,16,Auto">
+          <Border Grid.Column="0" Classes="metal-well" Padding="14,10">
+            <StackPanel Orientation="Horizontal" Spacing="20">
+              <CheckBox IsChecked="{Binding FwPatchRegionUnlock}" Content="Dest region / language unlock (Post-MVP)" FontSize="12" />
+              <CheckBox IsChecked="{Binding FwPatchVolumeCap}" Content="Remove EU SPL output limiter (Post-MVP)" FontSize="12" />
+            </StackPanel>
+          </Border>
+          <Button Grid.Column="2"
+                  Classes="metal-button under-glow-blue"
+                  Command="{Binding UploadFirmwarePostMvpCommand}"
+                  Height="42"
+                  Padding="22,0"
+                  CornerRadius="18"
+                  VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Upload}" Width="14" Height="14" />
+              <TextBlock Text="Upload to Player" FontSize="13.5" FontWeight="Bold" />
+              <Border Classes="wip-badge">
+                <TextBlock Text="WIP" Classes="wip-badge-text" />
+              </Border>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Grid>
+    </ctrl:BrushedMetalPanel>
+
+    <!-- TAB 3: DIAGNOSTIC DUMP WIZARD (WIRED TO L3.DumpWizard + L2.Telemetry.Dumper) -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsDeviceDumpTab}" ColumnDefinitions="1.1*,20,0.9*">
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="24">
+        <Grid RowDefinitions="Auto,14,Auto,16,*,16,Auto">
+          <StackPanel Grid.Row="0" Spacing="3">
+            <TextBlock Text="DIAGNOSTIC TELEMETRY ARCHIVER" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
+            <TextBlock Text="Unrecognized &amp; Live USB Probes" FontSize="17" FontWeight="Bold" />
+          </StackPanel>
+
+          <ComboBox Grid.Row="2"
+                    Classes="glass-select"
+                    ItemsSource="{Binding AvailableDumpProbes}"
+                    SelectedItem="{Binding SelectedDumpProbe}"
+                    HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DumpProbeOption">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Label}" FontSize="12.5" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Detail}" FontSize="10.5" Foreground="{DynamicResource AeroMutedBrush}" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <Border Grid.Row="4" Classes="glass-clear-box" CornerRadius="14" Padding="16">
+            <StackPanel Spacing="10">
+              <TextBlock Text="Sanitized Telemetry Capture Manifest (~50 KB .ZIP)" FontSize="13" FontWeight="SemiBold" />
+              <TextBlock Text="• USB VID/PID, Volume Serial, DvID, &amp; FAT16 BPB diagnostics" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" />
+              <TextBlock Text="• Raw OMGAUDIO metadata &amp; tables (track/album/artist names, MACLIST0, 00010021.DAT) for RE debugging" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+              <TextBlock Text="• Zero audio files or unrelated personal USB files leave your PC" FontSize="12" Foreground="{DynamicResource AeroLimeInkBrush}" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+
+          <Grid Grid.Row="6" ColumnDefinitions="*,14,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding DumpWizardStatusText}"
+                       FontSize="12"
+                       Foreground="{DynamicResource AeroSkyInkBrush}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap" />
+            <Button Grid.Column="2"
+                    Classes="metal-button under-glow-green"
+                    IsEnabled="{Binding CanStartDump}"
+                    Command="{Binding ExportDiagnosticDumpCommand}"
+                    Height="40"
+                    Padding="20,0"
+                    CornerRadius="18">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.DumpArchive}" Width="14" Height="14" />
+                <TextBlock Text="Export Diagnostic .ZIP..." FontSize="13" FontWeight="Bold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2" Classes="glass-frosted" Padding="24">
+        <StackPanel Spacing="12">
+          <TextBlock Text="PROBE SNAPSHOT DETAILS" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
+          <TextBlock Text="{Binding SelectedDumpProbe.Label, FallbackValue=No Probe Selected}" FontSize="16" FontWeight="Bold" />
+          <TextBlock Text="{Binding SelectedDumpProbe.Detail, FallbackValue=Attach a player or use Demo probe}" FontSize="12.5" Foreground="{DynamicResource AeroMutedBrush}" />
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" Margin="0,4" />
+          <TextBlock FontFamily="{StaticResource AeroMonoFont}" FontSize="11.5" TextWrapping="Wrap">
+            <Run Text="USB VID: " Foreground="{DynamicResource AeroMutedBrush}" />
+            <Run Text="{Binding SelectedDumpProbe.VendorHex, FallbackValue=0x0000}" />
+            <LineBreak />
+            <Run Text="USB PID: " Foreground="{DynamicResource AeroMutedBrush}" />
+            <Run Text="{Binding SelectedDumpProbe.ProductHex, FallbackValue=0x0000}" />
+            <LineBreak />
+            <Run Text="Mount Path: " Foreground="{DynamicResource AeroMutedBrush}" />
+            <Run Text="{Binding SelectedDumpProbe.RootPathDisplay, FallbackValue=Virtual}" />
+          </TextBlock>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- TAB 4: FULL TECHNICAL INFORMATION & AUTOMATED MAINTENANCE -->
+    <Grid Grid.Row="2" IsVisible="{Binding IsDeviceTechTab}" ColumnDefinitions="1.15*,20,0.85*">
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="22">
+        <Grid RowDefinitions="Auto,14,*">
+          <TextBlock Grid.Row="0" Text="HARDWARE &amp; TELEMETRY" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
+          <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding TechnicalInfoRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TechInfoRow">
+                  <Border BorderBrush="{DynamicResource RowDividerBrush}" BorderThickness="0,0,0,1" Padding="4,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="13.5" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding Value}" FontFamily="{StaticResource AeroMonoFont}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+      <ctrl:BrushedMetalPanel Grid.Column="2" IsDark="{Binding IsDark}" CornerRadiusValue="18" VerticalAlignment="Top">
+        <StackPanel Margin="22" Spacing="14">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="ADVANCED SERVICE &amp; MAINTENANCE" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
+            <Border Classes="demo-badge">
+              <TextBlock Text="POST-MVP" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </Border>
+          </StackPanel>
+          <TextBlock Text="Autonomous service tools run automatically after database scans. Manual overrides are reserved for diagnostics:"
+                     FontSize="12"
+                     Foreground="{DynamicResource AeroMutedBrush}"
+                     TextWrapping="Wrap" />
+
+          <Border Classes="metal-well" Padding="14">
+            <StackPanel Spacing="10">
+              <Button Classes="glass-clear"
+                      Command="{Binding ShowPostMvpNoticeCommand}"
+                      CommandParameter="Rewrite OpenMG Register Table"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="*,8,Auto">
+                  <TextBlock Grid.Column="0" Text="Rewrite OpenMG 0x0001 Key Registers" VerticalAlignment="Center" />
+                  <Border Grid.Column="2" Classes="wip-badge">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                      <TextBlock Text="WIP" Classes="wip-badge-text" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Button>
+              <Button Classes="glass-clear"
+                      Command="{Binding ShowPostMvpNoticeCommand}"
+                      CommandParameter="Rebuild OMGAUDIO Indexes"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="*,8,Auto">
+                  <TextBlock Grid.Column="0" Text="Force Full OMGAUDIO Index Rebuild" VerticalAlignment="Center" />
+                  <Border Grid.Column="2" Classes="wip-badge">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                      <TextBlock Text="WIP" Classes="wip-badge-text" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Button>
+              <Button Classes="glass-clear"
+                      Command="{Binding ShowPostMvpNoticeCommand}"
+                      CommandParameter="Factory Initialize Player Database"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="*,8,Auto">
+                  <TextBlock Grid.Column="0" Text="Reset Player OMGAUDIO Structure..." VerticalAlignment="Center" />
+                  <Border Grid.Column="2" Classes="wip-badge">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                      <TextBlock Text="WIP" Classes="wip-badge-text" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Button>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ctrl:BrushedMetalPanel>
+    </Grid>
+  </Grid>
+</UserControl>

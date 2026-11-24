@@ -1,15 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <AssemblyName>Walkman.L3.AppShell</AssemblyName>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Apollo Manager</AssemblyName>
     <RootNamespace>Walkman.L3.AppShell</RootNamespace>
-    <Description>L3 Composition Host &amp; Main Desktop Shell (Avalonia UI arrives in M4).</Description>
+    <Description>L3 Composition Host &amp; Main Desktop Shell (Avalonia UI + SkiaSharp Neo-Frutiger Aero 2026).</Description>
+    <ApplicationIcon>Assets\apollo-icon.ico</ApplicationIcon>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="z440.atl.core" Version="6.14.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Walkman.Contracts\Walkman.Contracts.csproj" />
     <ProjectReference Include="..\..\L1.Core\Walkman.L1.Orchestrator\Walkman.L1.Orchestrator.csproj" />
     <ProjectReference Include="..\..\L1.Core\Walkman.L1.DevicePoller\Walkman.L1.DevicePoller.csproj" />
     <ProjectReference Include="..\..\L1.Core\Walkman.L1.FileManager\Walkman.L1.FileManager.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Walkman.M0.Tests" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,259 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:core="using:Walkman.L3.AppShell.Core"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.LibraryPlayerView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,16,*">
+    <!-- Header & Interactive Format Filter Bar -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="My Library" Classes="view-title" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="{Binding LibraryFolderDisplay}"
+                     FontFamily="{StaticResource AeroMonoFont}"
+                     FontSize="12"
+                     Foreground="{DynamicResource AeroMutedBrush}"
+                     VerticalAlignment="Center" />
+          <Button Classes="glass-clear"
+                  Command="{Binding ChangeLibraryFolderCommand}"
+                  Padding="9,4">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderOpen}" Width="12" Height="12" />
+              <TextBlock Text="Add Folder" FontSize="11" FontWeight="Medium" />
+            </StackPanel>
+          </Button>
+          <Button Classes="glass-clear"
+                  Command="{Binding RequestClearMyLibraryCommand}"
+                  Padding="9,4">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Trash}" Width="12" Height="12" />
+              <TextBlock Text="Clear My Library" FontSize="11" FontWeight="Medium" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Border Classes="glass-clear-box" Height="34" Padding="3" CornerRadius="11" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+            <Button Classes="aero-tab" Height="26" Padding="10,0" Classes.active="{Binding IsLibFilterAll}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="All" Content="All" />
+            <Button Classes="aero-tab" Height="26" Padding="10,0" Classes.active="{Binding IsLibFilterFlac}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="FLAC" Content="FLAC" />
+            <Button Classes="aero-tab" Height="26" Padding="10,0" Classes.active="{Binding IsLibFilterAtrac}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="ATRAC3+" Content="ATRAC3+" />
+            <Button Classes="aero-tab" Height="26" Padding="10,0" Classes.active="{Binding IsLibFilterMp3}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="MP3" Content="MP3" />
+            <Button Classes="aero-tab" Height="26" Padding="10,0" Classes.active="{Binding IsLibFilterWav}" Command="{Binding SetLibraryFilterCommand}" CommandParameter="WAV" Content="WAV" />
+          </StackPanel>
+        </Border>
+
+        <ComboBox Classes="glass-select"
+                  ItemsSource="{Binding AvailableSortFields}"
+                  SelectedItem="{Binding LibrarySortField}"
+                  Height="34"
+                  Padding="10,4"
+                  FontSize="12"
+                  ToolTip.Tip="Sort library by" />
+        <Button Classes="glass-clear"
+                Height="34"
+                Padding="9,0"
+                Command="{Binding ToggleLibrarySortDirectionCommand}"
+                ToolTip.Tip="Toggle sort direction">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SortArrows}" Width="14" Height="14" />
+        </Button>
+        <Button Classes="glass-clear"
+                Height="34"
+                Padding="10,0"
+                Command="{Binding CollapseAllFoldersCommand}"
+                CommandParameter="lib"
+                ToolTip.ShowDelay="1000">
+          <ToolTip.Tip>
+            <StackPanel Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="12" Height="12" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                <TextBlock Text="Info" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AeroSkyInkBrush}" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Text="Collapses or expands all folder groups in the library list." TextWrapping="Wrap" MaxWidth="230" FontSize="11.5" />
+            </StackPanel>
+          </ToolTip.Tip>
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.CollapseAll}" Width="13" Height="13" />
+            <TextBlock Text="Collapse All" FontSize="12" FontWeight="SemiBold" />
+          </StackPanel>
+        </Button>
+
+        <Grid Width="190">
+          <TextBox x:Name="LibSearchBox"
+                   Classes="glass-input"
+                   Text="{Binding LibrarySearch}"
+                   Watermark="Search..."
+                   Padding="30,4,26,4"
+                   Height="34"
+                   FontSize="12" />
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Search}"
+                           Width="13"
+                           Height="13"
+                           Foreground="{DynamicResource AeroSubtleBrush}"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"
+                           IsHitTestVisible="False" />
+          <Button Classes="glass-clear"
+                  IsVisible="{Binding LibrarySearch, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                  Command="{Binding ClearLibrarySearchCommand}"
+                  Width="18"
+                  Height="18"
+                  CornerRadius="9"
+                  Padding="0"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Center"
+                  Margin="0,0,6,0"
+                  ToolTip.Tip="Clear search">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="9" Height="9" StrokeThickness="2" />
+          </Button>
+        </Grid>
+      </StackPanel>
+    </Grid>
+
+    <!-- Frosted Glass Track Table -->
+    <Border Grid.Row="2" Classes="glass-frosted" Padding="20,14,20,10">
+      <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" Margin="6,0,14,4" Height="28" Background="Transparent">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="46" />
+            <ColumnDefinition Width="2.2*" />
+            <ColumnDefinition Width="{Binding LibColAlbumWidth}" />
+            <ColumnDefinition Width="{Binding LibColRatingWidth}" />
+            <ColumnDefinition Width="{Binding LibColCodecWidth}" />
+            <ColumnDefinition Width="{Binding LibColDurationWidth}" />
+          </Grid.ColumnDefinitions>
+          <Grid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Album" ToggleType="CheckBox" IsChecked="{Binding ShowLibColAlbum, Mode=TwoWay}" />
+              <MenuItem Header="Rating" ToggleType="CheckBox" IsChecked="{Binding ShowLibColRating, Mode=TwoWay}" />
+              <MenuItem Header="Codec" ToggleType="CheckBox" IsChecked="{Binding ShowLibColCodec, Mode=TwoWay}" />
+              <MenuItem Header="Duration" ToggleType="CheckBox" IsChecked="{Binding ShowLibColDuration, Mode=TwoWay}" />
+            </ContextMenu>
+          </Grid.ContextMenu>
+          <TextBlock Grid.Column="0" Text="Play" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Text="Title &amp; Artist" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Text="Album" IsVisible="{Binding ShowLibColAlbum}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="3" Text="Rating" IsVisible="{Binding ShowLibColRating}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="4" Text="Codec" IsVisible="{Binding ShowLibColCodec}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="5" Text="Duration" IsVisible="{Binding ShowLibColDuration}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+
+        <ListBox Grid.Row="1"
+                 Classes="aero-track-list"
+                 AutoScrollToSelectedItem="False"
+                 Padding="0,0,4,12"
+                 ItemsSource="{Binding LibraryEntries}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="core:TrackListEntry">
+              <Panel>
+                <!-- Folder Header Row -->
+                <Button IsVisible="{Binding IsHeader}"
+                        Classes="glass-clear"
+                        Classes.folder-selected="{Binding HasSelectedTracks}"
+                        Classes.folder-playing="{Binding HasPlayingTrack}"
+                        Classes.folder-playing-selected="{Binding HasPlayingAndSelected}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="10,6"
+                        Margin="0,6,0,2"
+                        CornerRadius="10"
+                        Click="OnFolderHeaderClicked">
+                  <Button.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Select Folder" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).SelectFolderByKeyCommand}" CommandParameter="{Binding HeaderKey}" />
+                      <MenuItem Header="Stage for Transfer" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).StageLibraryFolderForTransferCommand}" CommandParameter="{Binding HeaderKey}" />
+                      <Separator />
+                      <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).RemoveFolderFromLibraryCommand}" CommandParameter="{Binding HeaderTitle}" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                  <Grid ColumnDefinitions="Auto,8,*,12,Auto,8,Auto">
+                    <Panel Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center">
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderClosed}" Width="14" Height="14" Foreground="{DynamicResource AeroSkyInkBrush}" IsVisible="{Binding !HasPlayingTrack}" />
+                      <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="12" Height="12" IsFilled="True" Foreground="{DynamicResource AeroLimeInkBrush}" IsVisible="{Binding HasPlayingTrack}" />
+                    </Panel>
+                    <TextBlock Grid.Column="2" Text="{Binding HeaderTitle}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding HeaderCountLabel}" FontFamily="{StaticResource AeroMonoFont}" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" />
+                    <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronDown}" Width="13" Height="13" IsVisible="{Binding IsExpanded}" />
+                    <ctrl:StrokeIcon Grid.Column="6" Data="{x:Static ctrl:AeroIcons.ChevronRight}" Width="13" Height="13" IsVisible="{Binding !IsExpanded}" />
+                  </Grid>
+                </Button>
+
+                <!-- Track Row -->
+                <Border IsVisible="{Binding IsTrack}"
+                        Classes="track-row"
+                        Classes.selected="{Binding Track.IsLibrarySelected, FallbackValue=False}"
+                        Classes.playing="{Binding Track.IsNowPlaying, FallbackValue=False}"
+                        Padding="6,9"
+                        CornerRadius="10"
+                        Cursor="Hand"
+                        PointerPressed="OnTrackRowPressed">
+                  <Border.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Play / Pause" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).PlayTrackFromMenuCommand}" CommandParameter="{Binding Track}" />
+                      <Separator />
+                      <MenuItem Header="Stage for File Manager Transfer" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).StageLibraryTrackForTransferCommand}" CommandParameter="{Binding Track}" />
+                      <MenuItem Header="Edit Tags &amp; Lyrics" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).OpenTrackInCustomizationCommand}" CommandParameter="{Binding Track}" />
+                      <Separator />
+                      <MenuItem Header="Remove from Library" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).RemoveTrackFromLibraryCommand}" CommandParameter="{Binding Track}" />
+                      <MenuItem Header="Delete File from PC..." Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).RequestDeleteTrackFromPcCommand}" CommandParameter="{Binding Track}" />
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="46" />
+                      <ColumnDefinition Width="2.2*" />
+                      <ColumnDefinition Width="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).LibColAlbumWidth}" />
+                      <ColumnDefinition Width="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).LibColRatingWidth}" />
+                      <ColumnDefinition Width="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).LibColCodecWidth}" />
+                      <ColumnDefinition Width="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).LibColDurationWidth}" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Classes="glass-clear"
+                            Classes.metal-button="{Binding Track.IsNowPlaying, FallbackValue=False}"
+                            Classes.under-glow-green="{Binding Track.IsNowPlaying, FallbackValue=False}"
+                            Width="28"
+                            Height="28"
+                            CornerRadius="14"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Click="OnPlayButtonClicked">
+                      <Panel>
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Pause}" Width="11" Height="11" IsFilled="True" IsVisible="{Binding Track.IsActivelyPlaying, FallbackValue=False}" />
+                        <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="11" Height="11" IsFilled="True" IsVisible="{Binding !Track.IsActivelyPlaying, FallbackValue=True}" Margin="1.5,0,0,0" />
+                      </Panel>
+                    </Button>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center" Spacing="1">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding Track.Title}" FontSize="13.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,6,0" />
+                        <Border Grid.Column="1" Classes="demo-badge" VerticalAlignment="Center" IsVisible="{Binding Track.HasSubtitles, FallbackValue=False}">
+                          <TextBlock Text="LRC" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                        </Border>
+                      </Grid>
+                      <TextBlock Text="{Binding Track.Artist}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="2" IsVisible="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ShowLibColAlbum}" Text="{Binding Track.AlbumAndYear}" FontSize="13" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="3" IsVisible="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ShowLibColRating}" Orientation="Horizontal" Spacing="1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                      <Button Classes="star-btn" Classes.lit="{Binding Track.RatingAtLeast1, FallbackValue=False}" Tag="1" Content="★" Click="OnRatingStarClicked" />
+                      <Button Classes="star-btn" Classes.lit="{Binding Track.RatingAtLeast2, FallbackValue=False}" Tag="2" Content="★" Click="OnRatingStarClicked" />
+                      <Button Classes="star-btn" Classes.lit="{Binding Track.RatingAtLeast3, FallbackValue=False}" Tag="3" Content="★" Click="OnRatingStarClicked" />
+                      <Button Classes="star-btn" Classes.lit="{Binding Track.RatingAtLeast4, FallbackValue=False}" Tag="4" Content="★" Click="OnRatingStarClicked" />
+                      <Button Classes="star-btn" Classes.lit="{Binding Track.RatingAtLeast5, FallbackValue=False}" Tag="5" Content="★" Click="OnRatingStarClicked" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="4" IsVisible="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ShowLibColCodec}" Text="{Binding Track.CodecAndBitrate}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="5" IsVisible="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ShowLibColDuration}" Text="{Binding Track.DurationFormatted}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                  </Grid>
+                </Border>
+              </Panel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

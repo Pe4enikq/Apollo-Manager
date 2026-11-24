@@ -17,9 +17,9 @@ public sealed class DeviceManifestResolutionTests
     }
 
     [Theory]
-    [InlineData(250_000_000L, "NW-E403")]
-    [InlineData(500_000_000L, "NW-E405")]
-    [InlineData(980_000_000L, "NW-E407")]
+    [InlineData(250_000_000L, "NW-E403 / E503")]
+    [InlineData(500_000_000L, "NW-E405 / E505")]
+    [InlineData(980_000_000L, "NW-E407 / E507")]
     public void SharedPid01FB_WithDvId0128_ResolvesCapacityTierAccurately(long capacityBytes, string expectedModel)
     {
         var probe = new DeviceDetectionProbe(

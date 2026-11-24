@@ -105,11 +105,16 @@ public sealed class DeviceManifestRegistry
                 $"No manifest profile satisfied hardware/filesystem markers for PID 0x{probe.ProductId:X4}.");
         }
 
-        var winner = scoredCandidates
+        var ordered = scoredCandidates
             .OrderByDescending(c => c.Score)
-            .First();
+            .ToList();
 
-        var resolvedModelCode = ResolveModelCode(winner.Profile, winner.Tier, probe);
+        var winner = ordered[0];
+        var tiedWinners = ordered
+            .Where(c => c.Score == winner.Score)
+            .ToList();
+
+        var resolvedModelCode = ResolveCombinedModelCode(tiedWinners, probe);
         var instanceId = BuildInstanceId(winner.Profile.SeriesId, probe);
 
         var identity = new ConnectedDeviceIdentity(
@@ -138,10 +143,22 @@ public sealed class DeviceManifestRegistry
             }
         }
 
-        // Reject if required root markers (e.g., OMGAUDIO) are missing.
+        bool usbPidMatched = probe.VendorId != 0 && profile.UsbIds.Any(id =>
+            id.VendorId == probe.VendorId && id.ProductId == probe.ProductId);
+        bool isBlankFormattedWalkman = usbPidMatched &&
+            probe.ProductId != 0x0243 &&
+            probe.PresentRootFolders.All(f => string.Equals(f, "System Volume Information", StringComparison.OrdinalIgnoreCase));
+
+        // Reject if required root markers (e.g., OMGAUDIO) are missing — UNLESS a live Sony USB PID
+        // matches a freshly formatted Walkman (only System Volume Information, before Bootstrap Mode creates OMGAUDIO/).
+        int matchedRequiredFolders = 0;
         foreach (var required in profile.Markers.RequiredFolders)
         {
-            if (!ContainsFolder(probe.PresentRootFolders, required))
+            if (ContainsFolder(probe.PresentRootFolders, required))
+            {
+                matchedRequiredFolders++;
+            }
+            else if (!isBlankFormattedWalkman)
             {
                 return null;
             }
@@ -158,9 +175,6 @@ public sealed class DeviceManifestRegistry
 
             dvIdMatched = true;
         }
-
-        bool usbPidMatched = probe.VendorId != 0 && profile.UsbIds.Any(id =>
-            id.VendorId == probe.VendorId && id.ProductId == probe.ProductId);
 
         int matchedTableMarkerCount = profile.Markers.RequiredTableMarkers.Count(marker =>
             ContainsFile(probe.PresentOmgAudioFiles, marker));
@@ -195,7 +209,7 @@ public sealed class DeviceManifestRegistry
             return null;
         }
 
-        int score = 0;
+        int score = matchedRequiredFolders * 40;
         if (dvIdMatched)
         {
             score += 100;
@@ -240,6 +254,26 @@ public sealed class DeviceManifestRegistry
         }
 
         return (profile, score, matchedTier);
+    }
+
+    private static string ResolveCombinedModelCode(
+        IReadOnlyList<(DeviceProfile Profile, int Score, CapacityTierRule? Tier)> tiedWinners,
+        DeviceDetectionProbe probe)
+    {
+        var codes = tiedWinners
+            .Select(w => ResolveModelCode(w.Profile, w.Tier, probe))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (codes.Count <= 1)
+        {
+            return codes.Count == 1 ? codes[0] : string.Empty;
+        }
+
+        string primary = codes[0];
+        var suffixes = codes.Skip(1)
+            .Select(c => c.StartsWith("NW-", StringComparison.OrdinalIgnoreCase) ? c[3..] : c);
+        return $"{primary} / {string.Join(" / ", suffixes)}";
     }
 
     private static string ResolveModelCode(

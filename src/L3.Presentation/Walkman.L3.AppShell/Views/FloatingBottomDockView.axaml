@@ -1,0 +1,291 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.FloatingBottomDockView"
+             x:DataType="vm:MainWindowViewModel"
+             IsHitTestVisible="True">
+  <Grid ColumnDefinitions="*,16,*"
+        Margin="92,0,24,16"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Bottom">
+
+    <!-- LEFT HALF: LIVE TRANSFER & CONVERSION MONITOR -->
+    <ctrl:BrushedMetalPanel Grid.Column="0"
+                            IsVisible="{Binding HasTransferJob}"
+                            Classes="dock-card"
+                            Classes.dock-open="{Binding HasTransferJob}"
+                            IsDark="{Binding IsDark}"
+                            CornerRadiusValue="18"
+                            VerticalAlignment="Bottom"
+                            MinHeight="78">
+      <Grid RowDefinitions="Auto,8,Auto" Margin="16,11">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,10,*,12,Auto,10,Auto">
+          <Border Grid.Column="0"
+                  Width="24"
+                  Height="24"
+                  CornerRadius="12"
+                  VerticalAlignment="Center"
+                  Background="{DynamicResource ClearGlassSurfaceBrush}"
+                  BorderBrush="{DynamicResource ClearGlassBorderBrush}"
+                  BorderThickness="1">
+            <Panel>
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.CheckCircle}"
+                               IsVisible="{Binding TransferJob.IsCompleted}"
+                               Width="14"
+                               Height="14"
+                               StrokeThickness="2"
+                               Foreground="{DynamicResource AeroLimeInkBrush}" />
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Disc}"
+                               Classes.spin-active="{Binding IsTransferRunning}"
+                               IsVisible="{Binding IsTransferRunning}"
+                               Width="13"
+                               Height="13"
+                               StrokeThickness="2"
+                               Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </Panel>
+          </Border>
+
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="{Binding TransferJob.CurrentFileName}"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding TransferJobStageCodec}"
+                       FontSize="12.5"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="4"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right"
+                      Spacing="1">
+            <TextBlock Text="{Binding TransferJobProgressText}"
+                       FontFamily="{StaticResource AeroMonoFont}"
+                       FontSize="12"
+                       HorizontalAlignment="Right" />
+            <TextBlock Text="{Binding TransferJobEtaText}"
+                       FontFamily="{StaticResource AeroMonoFont}"
+                       FontSize="11.5"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       HorizontalAlignment="Right" />
+          </StackPanel>
+
+          <Button Grid.Column="6"
+                  Classes="glass-clear"
+                  Width="24"
+                  Height="24"
+                  CornerRadius="12"
+                  Padding="0"
+                  Command="{Binding DismissTransferDockCommand}"
+                  ToolTip.Tip="Dismiss transfer taskbar">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="11" Height="11" StrokeThickness="2.1" />
+          </Button>
+        </Grid>
+
+        <!-- Recessed metallic progress trough (turns Amber during deletion) -->
+        <ProgressBar Grid.Row="2"
+                     Classes.amber-progress="{Binding TransferJob.IsDeleteJob, FallbackValue=False}"
+                     Minimum="0"
+                     Maximum="100"
+                     Value="{Binding TransferJobProgressPct}"
+                     Height="5"
+                     CornerRadius="3"
+                     Background="{DynamicResource TroughBgBrush}"
+                     Foreground="{StaticResource AeroAccentGradientBrush}" />
+      </Grid>
+    </ctrl:BrushedMetalPanel>
+
+    <!-- RIGHT HALF: PERSISTENT GLOBAL AUDIO PLAYER -->
+    <ctrl:BrushedMetalPanel Grid.Column="2"
+                            IsVisible="{Binding HasPlayerTrack}"
+                            Classes="dock-card"
+                            Classes.dock-open="{Binding HasPlayerTrack}"
+                            IsDark="{Binding IsDark}"
+                            CornerRadiusValue="18"
+                            VerticalAlignment="Bottom"
+                            MinHeight="78">
+      <Grid ColumnDefinitions="Auto,14,*,12,Auto" Margin="14,10">
+        <!-- Album Artwork Thumbnail (real embedded/folder cover when available, gradient fallback otherwise) -->
+        <Border Grid.Column="0"
+                Width="46"
+                Height="46"
+                CornerRadius="12"
+                ClipToBounds="True"
+                Background="{Binding PlayerCoverBrush}"
+                BorderBrush="#B8FFFFFF"
+                BorderThickness="1"
+                VerticalAlignment="Center">
+          <Border.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Reveal in My Library" Command="{Binding RevealPlayerTrackInLibraryCommand}" />
+              <MenuItem Header="Edit Tags &amp; Cover" Command="{Binding OpenTrackInCustomizationCommand}" CommandParameter="{Binding PlayerTrack}" />
+              <MenuItem Header="Stage for Transfer" Command="{Binding StageLibraryTrackForTransferCommand}" CommandParameter="{Binding PlayerTrack}" />
+              <Separator />
+              <MenuItem Header="Copy Title &amp; Artist" Click="OnCopyPlayerTrackClicked" />
+            </ContextMenu>
+          </Border.ContextMenu>
+          <Panel>
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Disc}"
+                             Classes.spin-slow="{Binding IsFallbackDiscSpinning}"
+                             IsVisible="{Binding !PlayerHasCoverBitmap}"
+                             Width="22"
+                             Height="22"
+                             StrokeThickness="1.8"
+                             Foreground="#F5FFFFFF" />
+            <Image Source="{Binding PlayerCoverBitmap}"
+                   IsVisible="{Binding PlayerHasCoverBitmap}"
+                   Stretch="UniformToFill" />
+          </Panel>
+        </Border>
+
+        <!-- Title, LRC / Artist & Playback Scrubber -->
+        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" Background="Transparent">
+          <StackPanel.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Reveal in My Library" Command="{Binding RevealPlayerTrackInLibraryCommand}" />
+              <MenuItem Header="Edit Tags &amp; Cover" Command="{Binding OpenTrackInCustomizationCommand}" CommandParameter="{Binding PlayerTrack}" />
+              <MenuItem Header="Stage for Transfer" Command="{Binding StageLibraryTrackForTransferCommand}" CommandParameter="{Binding PlayerTrack}" />
+              <Separator />
+              <MenuItem Header="Copy Title &amp; Artist" Click="OnCopyPlayerTrackClicked" />
+            </ContextMenu>
+          </StackPanel.ContextMenu>
+          <Grid ColumnDefinitions="*,Auto">
+            <ctrl:MarqueeTextBlock Grid.Column="0"
+                                   Text="{Binding PlayerTrack.Title}"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AeroInkBrush}"
+                                   SpeedPxPerSec="26"
+                                   PauseSeconds="2.2" />
+            <TextBlock Grid.Column="1"
+                       Text="{Binding PlayerTimeText}"
+                       Margin="8,0,0,0"
+                       FontFamily="{StaticResource AeroMonoFont}"
+                       FontSize="11.5"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       VerticalAlignment="Center" />
+          </Grid>
+
+          <ctrl:MarqueeTextBlock Text="{Binding PlayerSubtitleOrMeta}"
+                                 FontSize="12.5"
+                                 FontWeight="Medium"
+                                 Foreground="{DynamicResource AeroSkyInkBrush}"
+                                 SpeedPxPerSec="48"
+                                 PauseSeconds="1.4" />
+
+          <ctrl:AeroScrubberControl Maximum="{Binding PlayerDurationSec}"
+                                    Value="{Binding ElapsedSec}"
+                                    IsDark="{Binding IsDark}"
+                                    Margin="-4,1,-4,-2"
+                                    SeekRequested="OnScrubberSeekRequested" />
+        </StackPanel>
+
+        <!-- Unified Recessed Metallic Well: Shuffle, Prev, Play/Pause, Next, Repeat, Mute & Volume -->
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Border Classes="metal-well" CornerRadius="16" Padding="7,4" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Button Classes="metal-button"
+                      Classes.under-glow-blue="{Binding IsShuffleEnabled}"
+                      Width="31"
+                      Height="31"
+                      CornerRadius="15.5"
+                      Padding="0"
+                      Command="{Binding ToggleShuffleCommand}"
+                      ToolTip.Tip="{Binding ShuffleToolTip}">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Shuffle}" Width="13.5" Height="13.5" StrokeThickness="1.9" />
+              </Button>
+
+              <Button Classes="metal-button"
+                      Width="34"
+                      Height="34"
+                      CornerRadius="17"
+                      Padding="0"
+                      Command="{Binding PlayPreviousTrackCommand}"
+                      ToolTip.Tip="Click: Restart track · Double-click: Previous track">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SkipBack}" Width="14" Height="14" StrokeThickness="2" />
+              </Button>
+
+              <Button Classes="metal-button"
+                      Classes.under-glow-green="{Binding IsPlaying}"
+                      Width="42"
+                      Height="42"
+                      CornerRadius="21"
+                      Padding="0"
+                      Command="{Binding ToggleGlobalPlayPauseCommand}"
+                      ToolTip.Tip="Play / Pause (Space)">
+                <Panel>
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Pause}" Width="16" Height="16" IsFilled="True" IsVisible="{Binding IsPlaying}" />
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Play}" Width="16" Height="16" IsFilled="True" IsVisible="{Binding !IsPlaying}" Margin="1,0,0,0" />
+                </Panel>
+              </Button>
+
+              <Button Classes="metal-button"
+                      Width="34"
+                      Height="34"
+                      CornerRadius="17"
+                      Padding="0"
+                      Command="{Binding PlayNextTrackCommand}"
+                      ToolTip.Tip="Next track">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SkipForward}" Width="14" Height="14" StrokeThickness="2" />
+              </Button>
+
+              <Button Classes="metal-button"
+                      Classes.under-glow-blue="{Binding IsRepeatActive}"
+                      Width="31"
+                      Height="31"
+                      CornerRadius="15.5"
+                      Padding="0"
+                      Command="{Binding CycleRepeatModeCommand}"
+                      ToolTip.Tip="{Binding RepeatToolTip}">
+                <Panel>
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Repeat}" Width="13.5" Height="13.5" StrokeThickness="1.9" />
+                  <TextBlock Text="{Binding RepeatBadgeText}"
+                             IsVisible="{Binding IsRepeatOne}"
+                             FontSize="9"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource AeroSkyInkBrush}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center" />
+                </Panel>
+              </Button>
+
+              <Border Width="1" Height="22" Background="{DynamicResource RowDividerBrush}" Margin="2,0" />
+
+              <Button Classes="metal-button"
+                      Classes.under-glow-danger="{Binding IsPlayerMuted}"
+                      Width="31"
+                      Height="31"
+                      CornerRadius="15.5"
+                      Padding="0"
+                      Command="{Binding ToggleMuteCommand}"
+                      ToolTip.Tip="Mute / Unmute">
+                <Panel>
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.VolumeMuted}" IsVisible="{Binding IsPlayerMuted}" Width="13.5" Height="13.5" StrokeThickness="1.8" />
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.VolumeHigh}" IsVisible="{Binding !IsPlayerMuted}" Width="13.5" Height="13.5" StrokeThickness="1.8" />
+                </Panel>
+              </Button>
+
+              <Slider Minimum="0"
+                      Maximum="1"
+                      Value="{Binding PlayerVolume}"
+                      Width="58"
+                      VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+
+          <Button Classes="metal-button"
+                  Width="24"
+                  Height="24"
+                  CornerRadius="12"
+                  Padding="0"
+                  Command="{Binding CloseGlobalPlayerCommand}"
+                  ToolTip.Tip="Close global player">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="10" Height="10" StrokeThickness="2.1" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </ctrl:BrushedMetalPanel>
+  </Grid>
+</UserControl>

@@ -23,12 +23,13 @@ public sealed class MilestoneM1HardwareAndTransportTests
     [Fact]
     public void DvIdHardwareKeyResolver_RecoversExactHardwareKeyFromRealNwE403OmaHeaders()
     {
+        if (!TestEkbFixtureHelper.ShouldRunHardwareBackupTests()) return;
         var backupRoot = FindNwE403BackupRoot();
         var resolver = new DvIdHardwareKeyResolver();
 
         var tier1 = resolver.TryReadDvIdFile(backupRoot);
         Assert.NotNull(tier1);
-        Assert.Equal(0x09278120u, tier1.DeviceKey);
+        Assert.Equal(TestEkbFixtureHelper.SyntheticDeviceKeyA, tier1.DeviceKey);
         Assert.Equal((ushort)0x0128, tier1.ModelSegment);
         Assert.Equal("Tier1_DvIdFile", tier1.SourceTier);
 
@@ -37,7 +38,7 @@ public sealed class MilestoneM1HardwareAndTransportTests
         sw.Stop();
 
         Assert.NotNull(tier2);
-        Assert.Equal(0x09278120u, tier2.DeviceKey);
+        Assert.Equal(TestEkbFixtureHelper.SyntheticDeviceKeyA, tier2.DeviceKey);
         Assert.Equal("Tier2_OmaKnownPlaintext", tier2.SourceTier);
         Assert.True(sw.ElapsedMilliseconds < 100, $"Tier 2 key recovery took {sw.ElapsedMilliseconds} ms.");
     }
@@ -45,6 +46,7 @@ public sealed class MilestoneM1HardwareAndTransportTests
     [Fact]
     public async Task DevicePoller_IdentifiesBackedUpNwE403Volume_Under100ms_AndMountsVfs()
     {
+        if (!TestEkbFixtureHelper.ShouldRunHardwareBackupTests()) return;
         var codebaseRoot = ArchitectureDependencyTests.FindCodebaseRoot();
         var backupRoot = FindNwE403BackupRoot();
         var configuration = DetectBuildConfiguration();
@@ -59,16 +61,16 @@ public sealed class MilestoneM1HardwareAndTransportTests
             productId: 0x01FB,
             usbProductString: "SONY NWWM MEM AAD2 USB Device",
             overrideTotalBytes: 255_492_096,
-            overrideVolumeSerial: 0xA091E093);
+            overrideVolumeSerial: TestEkbFixtureHelper.SyntheticVolumeSerialA);
         sw.Stop();
 
         Assert.True(sw.ElapsedMilliseconds < 100, $"Resolution took {sw.ElapsedMilliseconds} ms (>100 ms gate).");
         Assert.True(outcome.Resolution.IsRecognized);
         Assert.NotNull(outcome.Resolution.Identity);
-        Assert.Equal("NW-E403", outcome.Resolution.Identity.ResolvedModelCode);
+        Assert.Equal("NW-E403 / E503", outcome.Resolution.Identity.ResolvedModelCode);
         Assert.Equal("NW-E400", outcome.Resolution.Identity.Profile.SeriesId);
         Assert.Equal(DatabaseFormat.OmgV1, outcome.Resolution.Identity.Profile.DatabaseFormat);
-        Assert.Equal(0x09278120u, outcome.Resolution.Identity.HardwareDvIdKey);
+        Assert.Equal(TestEkbFixtureHelper.SyntheticDeviceKeyA, outcome.Resolution.Identity.HardwareDvIdKey);
 
         var bus = new WalkmanEventBus();
         var mediator = new WalkmanMediator();
@@ -124,8 +126,8 @@ public sealed class MilestoneM1HardwareAndTransportTests
                 ResolvedModelCode: "NW-E403",
                 ColorSuffix: null,
                 VolumeRootPath: sandboxRoot,
-                VolumeSerialNumber: 0xA091E093,
-                HardwareDvIdKey: 0x09278120,
+                VolumeSerialNumber: TestEkbFixtureHelper.SyntheticVolumeSerialA,
+                HardwareDvIdKey: TestEkbFixtureHelper.SyntheticDeviceKeyA,
                 RawDvIdBytes: null);
 
             byte[] samplePayload = [0x65, 0x61, 0x33, 0x03, 0xAA, 0xBB, 0xCC, 0xDD];
@@ -195,10 +197,10 @@ public sealed class MilestoneM1HardwareAndTransportTests
             ProductId: 0x01FB,
             UsbProductString: "SONY NWWM MEM AAD2 USB Device",
             VolumeRootPath: backupRoot,
-            VolumeSerialNumber: 0xA091E093,
+            VolumeSerialNumber: TestEkbFixtureHelper.SyntheticVolumeSerialA,
             TotalVolumeBytes: 255_492_096,
             HardwareDvIdSegment: 0x0128,
-            HardwareDvIdKey: 0x09278120,
+            HardwareDvIdKey: TestEkbFixtureHelper.SyntheticDeviceKeyA,
             PresentRootFolders: ["OMGAUDIO", "NWWM", "NWWM-SCR"],
             PresentOmgAudioFiles: ["00GTRLST.DAT", "04CNTINF.DAT"]);
 

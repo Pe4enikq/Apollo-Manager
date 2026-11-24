@@ -58,10 +58,16 @@ public sealed class DvIdHardwareKeyResolver
 
         if (allowScsiPassThrough && OperatingSystem.IsWindows())
         {
-            var tier3 = TryQueryScsiReportKey(volumeRootPath);
-            if (tier3 is not null)
+            var tier3a = TryQueryScsiReportKey(volumeRootPath);
+            if (tier3a is not null)
             {
-                return tier3;
+                return tier3a;
+            }
+
+            var tier3b = TryQueryScsiAuth1Auth2(volumeRootPath);
+            if (tier3b is not null)
+            {
+                return tier3b;
             }
         }
 
@@ -213,7 +219,7 @@ public sealed class DvIdHardwareKeyResolver
             &bytesReturned,
             null);
 
-        if (!ok || bytesReturned < 18)
+        if (!ok || sptwb.Spt.ScsiStatus != 0 || sptwb.Spt.DataTransferLength < 18 || bytesReturned < 18)
         {
             return null;
         }
@@ -221,7 +227,132 @@ public sealed class DvIdHardwareKeyResolver
         ReadOnlySpan<byte> payload = new ReadOnlySpan<byte>(sptwb.DataBuffer, 64).Slice(2, 16);
         ushort segment = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(6, 2));
         uint key = BinaryPrimitives.ReadUInt32BigEndian(payload.Slice(10, 4));
+        if (key == 0 && segment == 0)
+        {
+            return null;
+        }
+
         return new DvIdResolutionResult(key, segment, payload.ToArray(), "Tier3_Scsi0xA4");
+    }
+
+    /// <summary>
+    /// Tier 3b: Read-only CM-AAD Auth 1 (0xA3/0x30) -> Auth 2 (0xA4/0x31) DvID fallback
+    /// for units where unauthenticated 0xA4/0x3F returns all zeros (e.g. NW-E507 FW 1.00).
+    /// </summary>
+    public unsafe DvIdResolutionResult? TryQueryScsiAuth1Auth2(string volumeRootPath)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(5, 1, 2600))
+        {
+            return null;
+        }
+
+        var driveRoot = Path.GetPathRoot(Path.GetFullPath(volumeRootPath));
+        if (string.IsNullOrWhiteSpace(driveRoot) || driveRoot.Length < 2 || driveRoot[1] != ':')
+        {
+            return null;
+        }
+
+        string devicePath = $@"\\.\{char.ToUpperInvariant(driveRoot[0])}:";
+        using SafeFileHandle handle = PInvoke.CreateFile(
+            devicePath,
+            GenericReadWrite,
+            FILE_SHARE_MODE.FILE_SHARE_READ | FILE_SHARE_MODE.FILE_SHARE_WRITE,
+            null,
+            FILE_CREATION_DISPOSITION.OPEN_EXISTING,
+            FILE_FLAGS_AND_ATTRIBUTES.FILE_ATTRIBUTE_NORMAL,
+            null);
+
+        if (handle.IsInvalid)
+        {
+            return null;
+        }
+
+        // Auth 1: SEND KEY (0xA3, KeyFmt 0x30), 20-byte payload: 00 12 00 00 || 16 random bytes
+        byte[] auth1Buf = new byte[20];
+        auth1Buf[1] = 0x12;
+        System.Security.Cryptography.RandomNumberGenerator.Fill(auth1Buf.AsSpan(4, 16));
+
+        if (!ExecuteScsiDirect(handle, 0xA3, 0x30, dataIn: 0, auth1Buf))
+        {
+            return null;
+        }
+
+        // Auth 2: REPORT KEY (0xA4, KeyFmt 0x31), 1084-byte response; DvID at [4..20]
+        byte[] auth2Buf = new byte[1084];
+        if (!ExecuteScsiDirect(handle, 0xA4, 0x31, dataIn: ScsiDataIn, auth2Buf))
+        {
+            return null;
+        }
+
+        ReadOnlySpan<byte> dvid = auth2Buf.AsSpan(4, 16);
+        ushort segment = BinaryPrimitives.ReadUInt16BigEndian(dvid.Slice(6, 2));
+        uint key = BinaryPrimitives.ReadUInt32BigEndian(dvid.Slice(10, 4));
+        if (key == 0 && segment == 0)
+        {
+            return null;
+        }
+
+        return new DvIdResolutionResult(key, segment, dvid.ToArray(), "Tier3b_ScsiAuth1Auth2");
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows5.1.2600")]
+    private static unsafe bool ExecuteScsiDirect(
+        SafeFileHandle handle,
+        byte opcode,
+        byte keyFormat,
+        byte dataIn,
+        byte[] dataBuffer)
+    {
+        const uint ioctlScsiPassThroughDirect = 0x0004D014u;
+        int sptSize = nint.Size == 8 ? 56 : 44;
+        byte[] sptBuffer = new byte[sptSize + 32];
+        var gch = GCHandle.Alloc(dataBuffer, GCHandleType.Pinned);
+        try
+        {
+            fixed (byte* pSpt = sptBuffer)
+            {
+                BinaryPrimitives.WriteUInt16LittleEndian(sptBuffer.AsSpan(0, 2), (ushort)sptSize);
+                sptBuffer[6] = 12; // CdbLength
+                sptBuffer[7] = 32; // SenseInfoLength
+                sptBuffer[8] = dataIn;
+                BinaryPrimitives.WriteUInt32LittleEndian(sptBuffer.AsSpan(12, 4), (uint)dataBuffer.Length);
+                BinaryPrimitives.WriteUInt32LittleEndian(sptBuffer.AsSpan(16, 4), 5u); // TimeOutValue
+
+                int dataBufferOffset = nint.Size == 8 ? 24 : 20;
+                int senseOffsetField = nint.Size == 8 ? 32 : 24;
+                int cdbOffset = nint.Size == 8 ? 36 : 28;
+
+                nint dataPtr = gch.AddrOfPinnedObject();
+                if (nint.Size == 8)
+                    BinaryPrimitives.WriteInt64LittleEndian(sptBuffer.AsSpan(dataBufferOffset, 8), dataPtr.ToInt64());
+                else
+                    BinaryPrimitives.WriteInt32LittleEndian(sptBuffer.AsSpan(dataBufferOffset, 4), dataPtr.ToInt32());
+
+                BinaryPrimitives.WriteUInt32LittleEndian(sptBuffer.AsSpan(senseOffsetField, 4), (uint)sptSize);
+                sptBuffer[cdbOffset + 0] = opcode;
+                sptBuffer[cdbOffset + 7] = 0xBC;
+                sptBuffer[cdbOffset + 8] = (byte)((dataBuffer.Length >> 8) & 0xFF);
+                sptBuffer[cdbOffset + 9] = (byte)(dataBuffer.Length & 0xFF);
+                sptBuffer[cdbOffset + 10] = keyFormat;
+
+                uint bytesReturned = 0;
+                bool ok = PInvoke.DeviceIoControl(
+                    handle,
+                    ioctlScsiPassThroughDirect,
+                    pSpt,
+                    (uint)sptBuffer.Length,
+                    pSpt,
+                    (uint)sptBuffer.Length,
+                    &bytesReturned,
+                    null);
+
+                return ok && sptBuffer[2] == 0; // ScsiStatus == 0
+            }
+        }
+        finally
+        {
+            gch.Free();
+        }
     }
 
     private static uint? TryRecoverDeviceKeyFromSingleOma(string filePath, int trackId)

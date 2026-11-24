@@ -3,6 +3,7 @@
     <AssemblyName>Walkman.L2.Custom.NwmEngine</AssemblyName>
     <RootNamespace>Walkman.L2.Custom.NwmEngine</RootNamespace>
     <Description>L2 Sony .nwm Screensaver Binary Packer/Unpacker (implemented in M4).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>

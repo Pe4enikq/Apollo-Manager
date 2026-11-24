@@ -8,6 +8,7 @@ obj/
 out/
 publish/
 artifacts/
+dist/
 *.dll
 *.exe
 *.pdb
@@ -69,6 +70,10 @@ staging/
 *.ogg
 *.opus
 *.wma
+
+# Python bytecode
+__pycache__/
+*.py[cod]
 
 # OS Generated Metadata
 Thumbs.db

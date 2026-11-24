@@ -3,6 +3,7 @@
     <AssemblyName>Walkman.L2.Crypto.OpenMG</AssemblyName>
     <RootNamespace>Walkman.L2.Crypto.OpenMG</RootNamespace>
     <Description>L2 OpenMG ea3/EA3 Header &amp; DvID.DAT XOR/DES Engine (implemented in M2).</Description>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
   <ItemGroup>

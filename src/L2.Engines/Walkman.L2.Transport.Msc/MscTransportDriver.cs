@@ -46,7 +46,7 @@ public sealed class MscTransportDriver : ITransportDriver
         return Task.FromResult(File.Exists(fullPath) || Directory.Exists(fullPath));
     }
 
-    public Task<IReadOnlyList<string>> ListFilesAsync(ConnectedDeviceIdentity device, string relativeDirectory, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> ListFilesAsync(ConnectedDeviceIdentity device, string relativeDirectory, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var rootPath = ValidateDeviceRoot(device);
@@ -57,15 +57,19 @@ public sealed class MscTransportDriver : ITransportDriver
 
         if (!Directory.Exists(targetDir))
         {
-            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+            return Array.Empty<string>();
         }
 
-        var files = Directory.GetFiles(targetDir, "*", SearchOption.TopDirectoryOnly)
-            .Select(f => Path.GetRelativePath(rootPath, f).Replace('\\', '/'))
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        return Task.FromResult<IReadOnlyList<string>>(files);
+        return await ExecuteWithIoRetryAsync<IReadOnlyList<string>>(
+            _ =>
+            {
+                var files = Directory.GetFiles(targetDir, "*", SearchOption.TopDirectoryOnly)
+                    .Select(f => Path.GetRelativePath(rootPath, f).Replace('\\', '/'))
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                return Task.FromResult<IReadOnlyList<string>>(files);
+            },
+            ct).ConfigureAwait(false);
     }
 
     public async Task<byte[]> ReadFileAsync(ConnectedDeviceIdentity device, string relativePath, CancellationToken ct = default)
@@ -73,28 +77,86 @@ public sealed class MscTransportDriver : ITransportDriver
         ct.ThrowIfCancellationRequested();
         var fullPath = ResolveSafePath(ValidateDeviceRoot(device), relativePath, enforceStrict8Dot3: false, out _);
 
-        await using var fs = new FileStream(
-            fullPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.ReadWrite,
-            bufferSize: 65536,
-            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-        var buffer = new byte[fs.Length];
-        int totalRead = 0;
-        while (totalRead < buffer.Length)
+        return await ExecuteWithIoRetryAsync(async token =>
         {
-            int read = await fs.ReadAsync(buffer.AsMemory(totalRead), ct).ConfigureAwait(false);
-            if (read == 0)
+            await using var fs = new FileStream(
+                fullPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: 65536,
+                options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            var buffer = new byte[fs.Length];
+            int totalRead = 0;
+            while (totalRead < buffer.Length)
             {
-                break;
+                int read = await fs.ReadAsync(buffer.AsMemory(totalRead), token).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                totalRead += read;
             }
 
-            totalRead += read;
+            return totalRead == buffer.Length ? buffer : buffer[..totalRead];
+        }, ct).ConfigureAwait(false);
+    }
+
+    public async Task<byte[]> ReadFilePrefixAsync(
+        ConnectedDeviceIdentity device,
+        string relativePath,
+        int maxBytes,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (maxBytes <= 0)
+        {
+            return Array.Empty<byte>();
         }
 
-        return totalRead == buffer.Length ? buffer : buffer[..totalRead];
+        var fullPath = ResolveSafePath(ValidateDeviceRoot(device), relativePath, enforceStrict8Dot3: false, out _);
+        return await ExecuteWithIoRetryAsync(async token =>
+        {
+            await using var fs = new FileStream(
+                fullPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: Math.Min(maxBytes, 65536),
+                options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            int toRead = (int)Math.Min(fs.Length, maxBytes);
+            var buffer = new byte[toRead];
+            int offset = 0;
+            while (offset < toRead)
+            {
+                int read = await fs.ReadAsync(buffer.AsMemory(offset, toRead - offset), token).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                offset += read;
+            }
+
+            return offset == toRead ? buffer : buffer[..offset];
+        }, ct).ConfigureAwait(false);
+    }
+
+    public Task<long> GetFileLengthAsync(
+        ConnectedDeviceIdentity device,
+        string relativePath,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var fullPath = ResolveSafePath(ValidateDeviceRoot(device), relativePath, enforceStrict8Dot3: false, out _);
+        return ExecuteWithIoRetryAsync(_ =>
+        {
+            var info = new FileInfo(fullPath);
+            return Task.FromResult(info.Exists ? info.Length : 0L);
+        }, ct);
     }
 
     public async Task WriteFileAtomicAsync(
@@ -106,8 +168,12 @@ public sealed class MscTransportDriver : ITransportDriver
         ct.ThrowIfCancellationRequested();
         var rootPath = ValidateDeviceRoot(device);
 
-        // Guard 1: Verify mounted volume serial matches bound device session before touching flash storage.
-        VerifyVolumeSerialBinding(device, rootPath);
+        if (device.BpbDiagnostics?.VerificationState == BpbVerificationState.InvalidWindowsFormat)
+        {
+            throw new InvalidOperationException(
+                device.BpbDiagnostics.WarningMessage
+                ?? "Write blocked: device volume has an invalid Windows FAT16 BPB. Run on-device Format first.");
+        }
 
         // Guard 2: Enforce strict uppercase FAT 8.3 ASCII path format on writes.
         var finalPath = ResolveSafePath(rootPath, relativePath, enforceStrict8Dot3: true, out _);
@@ -116,59 +182,98 @@ public sealed class MscTransportDriver : ITransportDriver
 
         Directory.CreateDirectory(targetDirectory);
 
-        // Guard 3: Stage into an 8.3 temporary file, flush OS buffers to physical storage, then atomic move.
-        string tempName = $"T{Guid.NewGuid():N}"[..8].ToUpperInvariant() + ".TMP";
-        string tempPath = Path.Combine(targetDirectory, tempName);
-
-        try
+        await ExecuteWithIoRetryAsync(async token =>
         {
-            await using (var fs = new FileStream(
-                tempPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 65536,
-                options: FileOptions.Asynchronous))
-            {
-                await fs.WriteAsync(payload, ct).ConfigureAwait(false);
-                await fs.FlushAsync(ct).ConfigureAwait(false);
-                fs.Flush(flushToDisk: true);
-            }
+            // Guard 1: Verify mounted volume serial matches bound device session on every attempt.
+            VerifyVolumeSerialBinding(device, rootPath);
+            // Guard 3: Stage into an 8.3 temporary file, flush OS buffers to physical storage, then atomic move.
+            string tempName = $"T{Guid.NewGuid():N}"[..8].ToUpperInvariant() + ".TMP";
+            string tempPath = Path.Combine(targetDirectory, tempName);
 
-            File.Move(tempPath, finalPath, overwrite: true);
-        }
-        catch
-        {
-            if (File.Exists(tempPath))
+            try
             {
-                try
+                await using (var fs = new FileStream(
+                    tempPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 65536,
+                    options: FileOptions.Asynchronous))
                 {
-                    File.Delete(tempPath);
+                    await fs.WriteAsync(payload, token).ConfigureAwait(false);
+                    await fs.FlushAsync(token).ConfigureAwait(false);
+                    fs.Flush(flushToDisk: true);
                 }
-                catch
-                {
-                    // Best-effort cleanup of failed staging file.
-                }
-            }
 
-            throw;
-        }
+                File.Move(tempPath, finalPath, overwrite: true);
+            }
+            catch
+            {
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.Delete(tempPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup of failed staging file.
+                    }
+                }
+
+                throw;
+            }
+        }, ct).ConfigureAwait(false);
     }
 
     public Task DeleteFileAsync(ConnectedDeviceIdentity device, string relativePath, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var rootPath = ValidateDeviceRoot(device);
-        VerifyVolumeSerialBinding(device, rootPath);
 
-        var fullPath = ResolveSafePath(rootPath, relativePath, enforceStrict8Dot3: false, out _);
-        if (File.Exists(fullPath))
+        if (device.BpbDiagnostics?.VerificationState == BpbVerificationState.InvalidWindowsFormat)
         {
-            File.Delete(fullPath);
+            throw new InvalidOperationException(
+                device.BpbDiagnostics.WarningMessage
+                ?? "Delete blocked: device volume has an invalid Windows FAT16 BPB. Run on-device Format first.");
         }
 
-        return Task.CompletedTask;
+        var fullPath = ResolveSafePath(rootPath, relativePath, enforceStrict8Dot3: false, out _);
+        return ExecuteWithIoRetryAsync(_ =>
+        {
+            VerifyVolumeSerialBinding(device, rootPath);
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+
+            return Task.CompletedTask;
+        }, ct);
     }
+
+    private static async Task<T> ExecuteWithIoRetryAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken ct)
+    {
+        int[] backoffsMs = [40, 90, 180, 350];
+        for (int attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                return await operation(ct).ConfigureAwait(false);
+            }
+            catch (IOException ex) when (ex is not FileNotFoundException and not DirectoryNotFoundException and not PathTooLongException && attempt < backoffsMs.Length)
+            {
+                await Task.Delay(backoffsMs[attempt], ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static Task ExecuteWithIoRetryAsync(Func<CancellationToken, Task> operation, CancellationToken ct) =>
+        ExecuteWithIoRetryAsync(async token =>
+        {
+            await operation(token).ConfigureAwait(false);
+            return true;
+        }, ct);
 
     private void VerifyVolumeSerialBinding(ConnectedDeviceIdentity device, string rootPath)
     {
@@ -311,6 +416,15 @@ public sealed class MscTransportDriver : ITransportDriver
         {
             baseName = upper;
             extension = string.Empty;
+        }
+
+        if (baseName is "CON" or "PRN" or "AUX" or "NUL" ||
+            (baseName.Length == 4 && baseName[3] is >= '1' and <= '9' &&
+             (baseName.StartsWith("COM", StringComparison.Ordinal) || baseName.StartsWith("LPT", StringComparison.Ordinal))))
+        {
+            throw new ArgumentException(
+                $"Path segment '{rawSegment}' in '{fullRelativePath}' is a reserved Windows DOS device name.",
+                nameof(fullRelativePath));
         }
 
         if (baseName.Length is < 1 or > 8)

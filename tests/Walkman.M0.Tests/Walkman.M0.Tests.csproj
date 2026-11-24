@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.Orchestrator\Walkman.L1.Orchestrator.csproj" />
     <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.DevicePoller\Walkman.L1.DevicePoller.csproj" />
     <ProjectReference Include="..\..\src\L1.Core\Walkman.L1.FileManager\Walkman.L1.FileManager.csproj" />
+    <ProjectReference Include="..\..\src\L3.Presentation\Walkman.L3.AppShell\Walkman.L3.AppShell.csproj" />
 
     <!-- Build-order dependencies only; plugin DLLs are loaded dynamically via collectible PluginLoadContext. -->
     <ProjectReference Include="..\..\src\L2.Engines\Walkman.L2.Transport.Msc\Walkman.L2.Transport.Msc.csproj" ReferenceOutputAssembly="false" />

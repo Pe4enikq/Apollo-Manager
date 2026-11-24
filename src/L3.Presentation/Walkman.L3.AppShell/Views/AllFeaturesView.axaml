@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+             xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+             x:Class="Walkman.L3.AppShell.Views.AllFeaturesView"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid RowDefinitions="Auto,16,Auto,14,Auto,14,*">
+    <StackPanel Grid.Row="0" Spacing="4">
+      <TextBlock Text="All Features" Classes="view-title" />
+      <TextBlock Text="Live overview, connected player switch, and flat directory of all utility modules."
+                 Classes="view-subtitle" />
+    </StackPanel>
+
+    <!-- 2 Compact Live Status Summary Cards -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,14,*">
+      <Border Grid.Column="0" Classes="glass-frosted" Padding="18,14">
+        <Grid ColumnDefinitions="Auto,12,*">
+          <Border Grid.Column="0" Classes="glass-clear-box" Width="38" Height="38" CornerRadius="12">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Usb}" Width="17" Height="17" Foreground="{DynamicResource AeroLimeInkBrush}" />
+          </Border>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="HARDWARE LINK" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Foreground="{DynamicResource AeroMutedBrush}" />
+            <TextBlock Text="{Binding SummaryHardwareTitle}" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding SummaryHardwareDetail}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2" Classes="glass-frosted" Padding="18,14">
+        <Grid ColumnDefinitions="Auto,12,*">
+          <Border Grid.Column="0" Classes="glass-clear-box" Width="38" Height="38" CornerRadius="12">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Music}" Width="17" Height="17" Foreground="{DynamicResource AeroSkyInkBrush}" />
+          </Border>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="MUSIC CATALOG" FontSize="11" FontWeight="Bold" LetterSpacing="0.9" Foreground="{DynamicResource AeroMutedBrush}" />
+            <TextBlock Text="{Binding SummaryLibraryTitle}" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding SummaryLibraryDetail}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Quick Player Selection Strip -->
+    <Border Grid.Row="4" Classes="glass-frosted" Padding="18,12,18,14" ClipToBounds="False">
+      <Grid ColumnDefinitions="*,Auto" ClipToBounds="False">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Usb}" Width="15" Height="15" Foreground="{DynamicResource AeroSkyInkBrush}" />
+          <TextBlock Text="Active Target Player" FontSize="13" FontWeight="SemiBold" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,4,0,6" ClipToBounds="False">
+          <Button Classes="metal-button"
+                  Classes.under-glow-blue="{Binding !IsDeviceConnected}"
+                  CornerRadius="16"
+                  Padding="14,7"
+                  Click="OnDisconnectChipClicked"
+                  Content="Disconnected"
+                  FontSize="12"
+                  FontWeight="SemiBold" />
+          <ItemsControl ItemsSource="{Binding DeviceCards}" ClipToBounds="False">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" ClipToBounds="False" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:WalkmanDeviceCardViewModel">
+                <Button Classes="metal-button"
+                        Classes.under-glow-green="{Binding IsConnected}"
+                        CornerRadius="16"
+                        Padding="14,7"
+                        Click="OnSelectDeviceChipClicked">
+                  <TextBlock FontSize="12" FontWeight="SemiBold">
+                    <Run Text="Sony " />
+                    <Run Text="{Binding Profile.Model}" />
+                  </TextBlock>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Flat Module Directory -->
+    <Border Grid.Row="6" Classes="glass-frosted" Padding="18">
+      <ScrollViewer Padding="0,0,6,12">
+        <ItemsControl ItemsSource="{Binding FlatFeatures}" VerticalAlignment="Top">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="3" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FeatureCardItem">
+              <Button Classes="glass-clear"
+                      Height="94"
+                      Margin="0,0,12,12"
+                      Padding="16,14"
+                      CornerRadius="14"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Top"
+                      HorizontalContentAlignment="Stretch"
+                      VerticalContentAlignment="Top"
+                      IsEnabled="{Binding !IsBlocked}"
+                      Click="OnFeatureCardClicked">
+                <Grid ColumnDefinitions="Auto,12,*,Auto">
+                  <ctrl:StrokeIcon Grid.Column="0"
+                                   Data="{Binding IconGeometry}"
+                                   Width="20"
+                                   Height="20"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AeroSkyInkBrush}" />
+                  <Grid Grid.Column="2" RowDefinitions="Auto,2,Auto,4,16" VerticalAlignment="Center">
+                    <TextBlock Grid.Row="0" Text="{Binding Title}" FontSize="14.5" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="2" Text="{Binding Subtitle}" FontSize="12.5" Foreground="{DynamicResource AeroMutedBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Row="4"
+                               Text="Requires connected player"
+                               IsVisible="{Binding ShowBlockedNote}"
+                               FontSize="11"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource AeroMutedBrush}" />
+                  </Grid>
+                  <ctrl:StrokeIcon Grid.Column="3"
+                                   Data="{x:Static ctrl:AeroIcons.ArrowUpRight}"
+                                   Width="15"
+                                   Height="15"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AeroMutedBrush}" />
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

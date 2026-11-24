@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Walkman.Contracts.Devices;
 using Walkman.L1.DevicePoller.Interop;
 using Windows.Win32;
 
@@ -12,7 +14,8 @@ public sealed record UsbSonyDeviceInfo(
     ushort VendorId,
     ushort ProductId,
     string InstanceId,
-    string? Description);
+    string? Description,
+    string? SerialOrContainerId = null);
 
 /// <summary>
 /// Mounted storage volume and Walkman filesystem markers collected in read-only mode.
@@ -88,24 +91,194 @@ public sealed partial class Win32VolumeAndUsbProber
                 continue;
             }
 
+            string? serialOrContainer = ExtractUsbInstanceSerial(instanceId);
+
             string? effectiveDesc = description;
-            if ((string.IsNullOrWhiteSpace(effectiveDesc) ||
-                 effectiveDesc.Equals("USB Mass Storage Device", StringComparison.OrdinalIgnoreCase)) &&
-                sonyStorDescriptions.Length == 1)
+            if (string.IsNullOrWhiteSpace(effectiveDesc) ||
+                effectiveDesc.Equals("USB Mass Storage Device", StringComparison.OrdinalIgnoreCase))
             {
-                effectiveDesc = sonyStorDescriptions[0];
+                string? matchedStorDesc = null;
+                if (!string.IsNullOrWhiteSpace(serialOrContainer))
+                {
+                    matchedStorDesc = usbStorEntries
+                        .FirstOrDefault(e =>
+                            e.InstanceId.Contains($"\\{serialOrContainer}&", StringComparison.OrdinalIgnoreCase) ||
+                            e.InstanceId.EndsWith($"\\{serialOrContainer}", StringComparison.OrdinalIgnoreCase))
+                        .Description;
+                }
+
+                if (!string.IsNullOrWhiteSpace(matchedStorDesc))
+                {
+                    effectiveDesc = matchedStorDesc;
+                }
+                else if (sonyStorDescriptions.Length == 1)
+                {
+                    effectiveDesc = sonyStorDescriptions[0];
+                }
             }
 
-            devices.Add(new UsbSonyDeviceInfo(vid, pid, instanceId, effectiveDesc));
+            devices.Add(new UsbSonyDeviceInfo(vid, pid, instanceId, effectiveDesc, serialOrContainer));
         }
 
         return devices;
     }
 
+    private static string? ExtractUsbInstanceSerial(string instanceId)
+    {
+        int firstSlash = instanceId.IndexOf('\\');
+        if (firstSlash < 0)
+        {
+            return null;
+        }
+
+        int secondSlash = instanceId.IndexOf('\\', firstSlash + 1);
+        if (secondSlash < 0 || secondSlash + 1 >= instanceId.Length)
+        {
+            return null;
+        }
+
+        string tail = instanceId[(secondSlash + 1)..];
+        int amp = tail.IndexOf('&');
+        return amp >= 0 ? tail[..amp] : tail;
+    }
+
+    /// <summary>
+    /// Correlates a mounted volume root (e.g. "D:\") to its exact Sony USB device via
+    /// IOCTL_STORAGE_QUERY_PROPERTY (VendorId, ProductId, SerialNumber) when multiple Sony devices are present.
+    /// </summary>
+    public UsbSonyDeviceInfo? ResolveUsbDeviceForVolume(
+        string volumeRootPath,
+        IReadOnlyList<UsbSonyDeviceInfo> usbDevices,
+        bool allowFallbackToFirst = true)
+    {
+        if (usbDevices.Count == 0)
+        {
+            return null;
+        }
+
+        if ((usbDevices.Count == 1 && allowFallbackToFirst) || !OperatingSystem.IsWindowsVersionAtLeast(5, 1, 2600))
+        {
+            return allowFallbackToFirst ? usbDevices[0] : null;
+        }
+
+        var (vendorId, productId, serialNumber) = TryQueryStorageDeviceDescriptor(volumeRootPath);
+        if (!string.IsNullOrWhiteSpace(serialNumber))
+        {
+            var serialMatch = usbDevices.FirstOrDefault(d =>
+                (!string.IsNullOrWhiteSpace(d.SerialOrContainerId) &&
+                 d.SerialOrContainerId.Contains(serialNumber, StringComparison.OrdinalIgnoreCase)) ||
+                d.InstanceId.Contains(serialNumber, StringComparison.OrdinalIgnoreCase));
+            if (serialMatch is not null)
+            {
+                return serialMatch;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(productId))
+        {
+            var prodMatch = usbDevices.FirstOrDefault(d =>
+                !string.IsNullOrWhiteSpace(d.Description) &&
+                d.Description.Contains(productId, StringComparison.OrdinalIgnoreCase));
+            if (prodMatch is not null)
+            {
+                return prodMatch;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(vendorId) &&
+            vendorId.Contains("SONY", StringComparison.OrdinalIgnoreCase))
+        {
+            return usbDevices[0];
+        }
+
+        return allowFallbackToFirst ? usbDevices[0] : null;
+    }
+
+    private static unsafe (string? VendorId, string? ProductId, string? SerialNumber) TryQueryStorageDeviceDescriptor(string volumeRootPath)
+    {
+        if (string.IsNullOrWhiteSpace(volumeRootPath))
+        {
+            return (null, null, null);
+        }
+
+        string? root = Path.GetPathRoot(Path.GetFullPath(volumeRootPath));
+        if (string.IsNullOrWhiteSpace(root) || root.Length < 2 || root[1] != ':')
+        {
+            return (null, null, null);
+        }
+
+        string devicePath = $@"\\.\{char.ToUpperInvariant(root[0])}:";
+        using var handle = CreateFileW(
+            devicePath,
+            0u, // Metadata-only query
+            0x00000003u, // FILE_SHARE_READ | FILE_SHARE_WRITE
+            IntPtr.Zero,
+            3u, // OPEN_EXISTING
+            0u,
+            IntPtr.Zero);
+
+        if (handle.IsInvalid)
+        {
+            return (null, null, null);
+        }
+
+        const uint IoctlStorageQueryProperty = 0x002D1400u;
+        var query = new STORAGE_PROPERTY_QUERY
+        {
+            PropertyId = 0, // StorageDeviceProperty
+            QueryType = 0   // PropertyStandardQuery
+        };
+
+        byte[] outBuffer = new byte[1024];
+        fixed (byte* pOut = outBuffer)
+        {
+            if (!DeviceIoControl(
+                    handle,
+                    IoctlStorageQueryProperty,
+                    ref query,
+                    (uint)Marshal.SizeOf<STORAGE_PROPERTY_QUERY>(),
+                    (IntPtr)pOut,
+                    (uint)outBuffer.Length,
+                    out uint bytesReturned,
+                    IntPtr.Zero) || bytesReturned < 36)
+            {
+                return (null, null, null);
+            }
+        }
+
+        uint vendorOffset = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(outBuffer.AsSpan(12, 4));
+        uint productOffset = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(outBuffer.AsSpan(16, 4));
+        uint serialOffset = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(outBuffer.AsSpan(24, 4));
+
+        return (
+            ReadNullTerminatedAscii(outBuffer, vendorOffset),
+            ReadNullTerminatedAscii(outBuffer, productOffset),
+            ReadNullTerminatedAscii(outBuffer, serialOffset));
+    }
+
+    private static string? ReadNullTerminatedAscii(byte[] buffer, uint offset)
+    {
+        if (offset == 0 || offset >= buffer.Length)
+        {
+            return null;
+        }
+
+        int start = (int)offset;
+        int end = Array.IndexOf(buffer, (byte)0, start);
+        if (end < 0)
+        {
+            end = buffer.Length;
+        }
+
+        string text = System.Text.Encoding.ASCII.GetString(buffer, start, end - start).Trim();
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
     /// <summary>
     /// Scans mounted drives (Removable first, skipping A:\ and B:\) for Walkman marker folders.
     /// </summary>
-    public IReadOnlyList<MountedVolumeSnapshot> EnumerateWalkmanCandidateVolumes()
+    public IReadOnlyList<MountedVolumeSnapshot> EnumerateWalkmanCandidateVolumes(
+        IReadOnlyList<UsbSonyDeviceInfo>? sonyUsbDevices = null)
     {
         var drives = DriveInfo.GetDrives()
             .Where(d =>
@@ -140,7 +313,12 @@ public sealed partial class Win32VolumeAndUsbProber
             bool hasMarker = snapshot.PresentRootFolders.Any(f =>
                 KnownWalkmanMarkers.Contains(f, StringComparer.OrdinalIgnoreCase));
 
-            if (hasMarker)
+            bool isFreshlyFormattedSonyVolume = !hasMarker &&
+                drive.DriveType == DriveType.Removable &&
+                sonyUsbDevices is { Count: > 0 } &&
+                ResolveUsbDeviceForVolume(drive.Name, sonyUsbDevices, allowFallbackToFirst: false) is not null;
+
+            if (hasMarker || isFreshlyFormattedSonyVolume)
             {
                 results.Add(snapshot);
             }
@@ -227,6 +405,161 @@ public sealed partial class Win32VolumeAndUsbProber
         }
     }
 
+    public unsafe VolumeBpbDiagnostics? TryReadFat16Bpb(string volumeRootPath)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(5, 1, 2600) || string.IsNullOrWhiteSpace(volumeRootPath))
+        {
+            return null;
+        }
+
+        string? root = Path.GetPathRoot(Path.GetFullPath(volumeRootPath));
+        if (string.IsNullOrWhiteSpace(root) || root.Length < 2 || root[1] != ':')
+        {
+            return null;
+        }
+
+        string devicePath = $@"\\.\{char.ToUpperInvariant(root[0])}:";
+        using var handle = CreateFileW(
+            devicePath,
+            0x80000000u, // GENERIC_READ
+            0x00000003u, // FILE_SHARE_READ | FILE_SHARE_WRITE
+            IntPtr.Zero,
+            3u, // OPEN_EXISTING
+            0u,
+            IntPtr.Zero);
+
+        if (handle.IsInvalid)
+        {
+            int err = Marshal.GetLastWin32Error();
+            if (err == 5) // ERROR_ACCESS_DENIED
+            {
+                return new VolumeBpbDiagnostics(
+                    OemName: string.Empty,
+                    BytesPerSector: 0,
+                    SectorsPerCluster: 0,
+                    ReservedSectors: 0,
+                    FatCount: 0,
+                    FileSystemType: string.Empty,
+                    HasWindowsFormatWarning: false,
+                    WarningMessage: "FAT16 BPB verification requires Administrator privileges (access denied).",
+                    VerificationState: BpbVerificationState.UnverifiedAccessDenied);
+            }
+
+            return null;
+        }
+
+        byte[] sector0 = new byte[512];
+        if (!ReadFile(handle, sector0, 512, out int bytesRead, IntPtr.Zero) || bytesRead < 62)
+        {
+            return null;
+        }
+
+        string oem = System.Text.Encoding.ASCII.GetString(sector0, 3, 8).TrimEnd('\0', ' ');
+        ushort bps = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(sector0.AsSpan(11, 2));
+        byte spc = sector0[13];
+        ushort rsvd = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(sector0.AsSpan(14, 2));
+        byte fats = sector0[16];
+        string fsType = System.Text.Encoding.ASCII.GetString(sector0, 54, 8).TrimEnd('\0', ' ');
+
+        return new VolumeBpbDiagnostics(
+            OemName: oem,
+            BytesPerSector: bps,
+            SectorsPerCluster: spc,
+            ReservedSectors: rsvd,
+            FatCount: fats,
+            FileSystemType: fsType,
+            HasWindowsFormatWarning: false,
+            WarningMessage: null);
+    }
+
+    public static VolumeBpbDiagnostics EvaluateBpbPolicy(VolumeBpbDiagnostics raw, StrictFat16BpbRule? rule)
+    {
+        if (raw.VerificationState == BpbVerificationState.UnverifiedAccessDenied || rule is null)
+        {
+            return raw;
+        }
+
+        bool oemWarn = rule.WarnOnWindowsOem && raw.OemName.StartsWith("MSDOS", StringComparison.OrdinalIgnoreCase);
+        bool rsvdWarn = raw.ReservedSectors != rule.RequiredReservedSectors;
+        if (!oemWarn && !rsvdWarn)
+        {
+            return raw with
+            {
+                HasWindowsFormatWarning = false,
+                WarningMessage = null,
+                VerificationState = BpbVerificationState.VerifiedOk
+            };
+        }
+
+        return raw with
+        {
+            HasWindowsFormatWarning = true,
+            VerificationState = BpbVerificationState.InvalidWindowsFormat,
+            WarningMessage =
+                $"Volume was formatted by Windows (OEM='{raw.OemName}', Rsvd={raw.ReservedSectors}, expected Rsvd={rule.RequiredReservedSectors}), which causes FORMAT ERROR on this player — run on-device Format first."
+        };
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct STORAGE_PROPERTY_QUERY
+    {
+        public uint PropertyId;
+        public uint QueryType;
+        public byte AdditionalParameters;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(
+        Microsoft.Win32.SafeHandles.SafeFileHandle hDevice,
+        uint dwIoControlCode,
+        ref STORAGE_PROPERTY_QUERY lpInBuffer,
+        uint nInBufferSize,
+        IntPtr lpOutBuffer,
+        uint nOutBufferSize,
+        out uint lpBytesReturned,
+        IntPtr lpOverlapped);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool ReadFile(
+        Microsoft.Win32.SafeHandles.SafeFileHandle hFile,
+        [Out] byte[] lpBuffer,
+        int nNumberOfBytesToRead,
+        out int lpNumberOfBytesRead,
+        IntPtr lpOverlapped);
+
+    private static T ExecuteDirectoryIoWithRetry<T>(Func<T> action, T fallback)
+    {
+        int[] backoffsMs = [35, 80];
+        for (int attempt = 0; attempt <= backoffsMs.Length; attempt++)
+        {
+            try
+            {
+                return action();
+            }
+            catch (IOException ex) when (ex is not DirectoryNotFoundException and not FileNotFoundException && attempt < backoffsMs.Length)
+            {
+                Thread.Sleep(backoffsMs[attempt]);
+            }
+            catch (IOException)
+            {
+                return fallback;
+            }
+        }
+
+        return fallback;
+    }
+
     private static MountedVolumeSnapshot InspectVolumeRoot(
         string rootPath,
         DriveType driveType,
@@ -235,11 +568,13 @@ public sealed partial class Win32VolumeAndUsbProber
         long freeBytes,
         uint? overrideSerial = null)
     {
-        var rootFolders = Directory.GetDirectories(rootPath)
-            .Select(Path.GetFileName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!)
-            .ToArray();
+        var rootFolders = ExecuteDirectoryIoWithRetry(
+            () => Directory.GetDirectories(rootPath)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!)
+                .ToArray(),
+            Array.Empty<string>());
 
         string? omgFolder = rootFolders.FirstOrDefault(f =>
             string.Equals(f, "OMGAUDIO", StringComparison.OrdinalIgnoreCase));
@@ -250,11 +585,13 @@ public sealed partial class Win32VolumeAndUsbProber
             var omgPath = Path.Combine(rootPath, omgFolder);
             if (Directory.Exists(omgPath))
             {
-                omgFiles = Directory.GetFiles(omgPath)
-                    .Select(Path.GetFileName)
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Select(name => name!)
-                    .ToArray();
+                omgFiles = ExecuteDirectoryIoWithRetry(
+                    () => Directory.GetFiles(omgPath)
+                        .Select(Path.GetFileName)
+                        .Where(name => !string.IsNullOrWhiteSpace(name))
+                        .Select(name => name!)
+                        .ToArray(),
+                    Array.Empty<string>());
             }
         }
 

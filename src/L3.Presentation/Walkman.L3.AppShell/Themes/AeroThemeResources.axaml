@@ -1,0 +1,176 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <FontFamily x:Key="AeroSansFont">Inter, Segoe UI, -apple-system, sans-serif</FontFamily>
+  <FontFamily x:Key="AeroDisplayFont">Century Gothic, Inter, Segoe UI, sans-serif</FontFamily>
+  <FontFamily x:Key="AeroMonoFont">JetBrains Mono, Cascadia Mono, Consolas, monospace</FontFamily>
+
+  <ResourceDictionary.ThemeDictionaries>
+    <!-- LIGHT AERO 2026 -->
+    <ResourceDictionary x:Key="Default">
+      <SolidColorBrush x:Key="AeroInkBrush" Color="#18222F" />
+      <SolidColorBrush x:Key="AeroMutedBrush" Color="#4F5E72" />
+      <SolidColorBrush x:Key="AeroSubtleBrush" Color="#5B6B7F" />
+      <SolidColorBrush x:Key="AeroSkyInkBrush" Color="#0E63A0" />
+      <SolidColorBrush x:Key="AeroLimeInkBrush" Color="#378212" />
+      <SolidColorBrush x:Key="AeroDangerInkBrush" Color="#B85D00" />
+      <SolidColorBrush x:Key="AeroWarningInkBrush" Color="#9E5E00" />
+      <SolidColorBrush x:Key="JogDialScrimBrush" Color="#34101C2C" />
+      <SolidColorBrush x:Key="ModalBackdropBrush" Color="#660D1826" />
+      <LinearGradientBrush x:Key="ModalSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#FAFCFEFF" Offset="0" />
+        <GradientStop Color="#F6EFF6FD" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="FrostedGlassSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#D8F9FCFF" Offset="0" />
+        <GradientStop Color="#C4ECF5FE" Offset="0.52" />
+        <GradientStop Color="#CAF1FAF0" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="FrostedGlassBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#FAFFFFFF" Offset="0" />
+        <GradientStop Color="#CC9BD6FA" Offset="0.48" />
+        <GradientStop Color="#B8ACEE82" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="ClearGlassSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#B2FFFFFF" Offset="0" />
+        <GradientStop Color="#72E4F4FF" Offset="0.55" />
+        <GradientStop Color="#62DBF8D6" Offset="1" />
+      </LinearGradientBrush>
+
+      <SolidColorBrush x:Key="ClearGlassBorderBrush" Color="#B8B6D2EA" />
+
+      <LinearGradientBrush x:Key="MetalButtonBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#FFFAFDFF" Offset="0" />
+        <GradientStop Color="#FFE3EBF3" Offset="0.48" />
+        <GradientStop Color="#FFD2DCE7" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="MetalButtonHoverBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#FFFFFFFF" Offset="0" />
+        <GradientStop Color="#FFEAF3FA" Offset="0.5" />
+        <GradientStop Color="#FFD8E4EF" Offset="1" />
+      </LinearGradientBrush>
+
+      <SolidColorBrush x:Key="MetalButtonBorderBrush" Color="#A69FB4CA" />
+      <SolidColorBrush x:Key="RowDividerBrush" Color="#44B8C8DA" />
+      <SolidColorBrush x:Key="RowHoverBrush" Color="#88FFFFFF" />
+      <SolidColorBrush x:Key="RowSelectedBrush" Color="#90CBEBFF" />
+      <SolidColorBrush x:Key="RowPlayingBrush" Color="#90D9F7C2" />
+      <SolidColorBrush x:Key="TroughBgBrush" Color="#2218283C" />
+      <SolidColorBrush x:Key="TabActiveBrush" Color="#F2FFFFFF" />
+      <SolidColorBrush x:Key="TabHoverBrush" Color="#66FFFFFF" />
+
+      <BoxShadows x:Key="FrostedGlassBoxShadow">0 8 14 -5 #22263F5C, inset 0 1 0 0 #B8FFFFFF</BoxShadows>
+      <BoxShadows x:Key="ClearGlassBoxShadow">inset 0 1 1 0 #A8FFFFFF</BoxShadows>
+      <BoxShadows x:Key="MetalButtonBoxShadow">inset 0 1 0 0 #D8FFFFFF, 0 2 8 -3 #2A22344A</BoxShadows>
+      <BoxShadows x:Key="MetalButtonGreenGlowShadow">inset 0 1 0 0 #E8FFFFFF, 0 3 11 -1 #A86EE032</BoxShadows>
+      <BoxShadows x:Key="MetalButtonBlueGlowShadow">inset 0 1 0 0 #E8FFFFFF, 0 3 11 -1 #AD44AEF8</BoxShadows>
+      <BoxShadows x:Key="MetalButtonAmberGlowShadow">inset 0 1 0 0 #E8FFFFFF, 0 3 12 -1 #B8FF9E1B</BoxShadows>
+      <BoxShadows x:Key="ClearGlassGreenGlowShadow">inset 0 1 0 0 #CCFFFFFF, 0 3 10 -2 #786EE032</BoxShadows>
+      <BoxShadows x:Key="DeviceCardConnectedShadow">0 8 16 -6 #26263F5C, 0 0 0 2 #5588E64A</BoxShadows>
+      <SolidColorBrush x:Key="MetalWellBgBrush" Color="#88CEDAE7" />
+      <SolidColorBrush x:Key="MetalWellBorderBrush" Color="#8AA3B8CF" />
+      <BoxShadows x:Key="MetalWellShadow">inset 0 2 6 0 #26223850, 0 1 0 0 #B8FFFFFF</BoxShadows>
+      <LinearGradientBrush x:Key="ToastSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#EEF8FCFF" Offset="0" />
+        <GradientStop Color="#E6ECF5FE" Offset="1" />
+      </LinearGradientBrush>
+    </ResourceDictionary>
+
+    <!-- DARK GRAPHITE -->
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="AeroInkBrush" Color="#EDF3FA" />
+      <SolidColorBrush x:Key="AeroMutedBrush" Color="#9EB0C5" />
+      <SolidColorBrush x:Key="AeroSubtleBrush" Color="#94A6BC" />
+      <SolidColorBrush x:Key="AeroSkyInkBrush" Color="#74C8FF" />
+      <SolidColorBrush x:Key="AeroLimeInkBrush" Color="#A2F264" />
+      <SolidColorBrush x:Key="AeroDangerInkBrush" Color="#FFBE4F" />
+      <SolidColorBrush x:Key="AeroWarningInkBrush" Color="#FFCA5E" />
+      <SolidColorBrush x:Key="JogDialScrimBrush" Color="#7A070B12" />
+      <SolidColorBrush x:Key="ModalBackdropBrush" Color="#8E040810" />
+      <LinearGradientBrush x:Key="ModalSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#FA232B39" Offset="0" />
+        <GradientStop Color="#F61A202B" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="FrostedGlassSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#CC262E3C" Offset="0" />
+        <GradientStop Color="#BA1E2430" Offset="0.54" />
+        <GradientStop Color="#C4222A35" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="FrostedGlassBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#52FFFFFF" Offset="0" />
+        <GradientStop Color="#3A7ACBFF" Offset="0.52" />
+        <GradientStop Color="#3694E552" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="ClearGlassSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#28FFFFFF" Offset="0" />
+        <GradientStop Color="#1878BCEE" Offset="1" />
+      </LinearGradientBrush>
+
+      <SolidColorBrush x:Key="ClearGlassBorderBrush" Color="#3EC0DAF2" />
+
+      <LinearGradientBrush x:Key="MetalButtonBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#FF454F60" Offset="0" />
+        <GradientStop Color="#FF333B49" Offset="0.52" />
+        <GradientStop Color="#FF282E3B" Offset="1" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="MetalButtonHoverBgBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Color="#FF515C70" Offset="0" />
+        <GradientStop Color="#FF3B4454" Offset="0.52" />
+        <GradientStop Color="#FF2D3443" Offset="1" />
+      </LinearGradientBrush>
+
+      <SolidColorBrush x:Key="MetalButtonBorderBrush" Color="#558FA4C0" />
+      <SolidColorBrush x:Key="RowDividerBrush" Color="#334B576A" />
+      <SolidColorBrush x:Key="RowHoverBrush" Color="#1AFFFFFF" />
+      <SolidColorBrush x:Key="RowSelectedBrush" Color="#2B489AE6" />
+      <SolidColorBrush x:Key="RowPlayingBrush" Color="#2C7BE03E" />
+      <SolidColorBrush x:Key="TroughBgBrush" Color="#6607090D" />
+      <SolidColorBrush x:Key="TabActiveBrush" Color="#FF394354" />
+      <SolidColorBrush x:Key="TabHoverBrush" Color="#24FFFFFF" />
+
+      <BoxShadows x:Key="FrostedGlassBoxShadow">0 10 16 -5 #88000000, inset 0 1 0 0 #26FFFFFF</BoxShadows>
+      <BoxShadows x:Key="ClearGlassBoxShadow">inset 0 1 1 0 #24FFFFFF</BoxShadows>
+      <BoxShadows x:Key="MetalButtonBoxShadow">inset 0 1 0 0 #2EFFFFFF, 0 3 8 -3 #77000000</BoxShadows>
+      <BoxShadows x:Key="MetalButtonGreenGlowShadow">inset 0 1 0 0 #38D8FFCA, 0 4 12 -1 #9982E440</BoxShadows>
+      <BoxShadows x:Key="MetalButtonBlueGlowShadow">inset 0 1 0 0 #38C8E8FF, 0 4 12 -1 #A044AEF8</BoxShadows>
+      <BoxShadows x:Key="MetalButtonAmberGlowShadow">inset 0 1 0 0 #38FFE4B0, 0 4 12 -1 #A8FF9E1B</BoxShadows>
+      <BoxShadows x:Key="ClearGlassGreenGlowShadow">inset 0 1 0 0 #2CFFFFFF, 0 3 10 -2 #7882E440</BoxShadows>
+      <BoxShadows x:Key="DeviceCardConnectedShadow">0 10 18 -6 #88000000, 0 0 0 2 #6688E64A</BoxShadows>
+      <SolidColorBrush x:Key="MetalWellBgBrush" Color="#72181E28" />
+      <SolidColorBrush x:Key="MetalWellBorderBrush" Color="#48687C96" />
+      <BoxShadows x:Key="MetalWellShadow">inset 0 2 7 0 #8A000000, 0 1 0 0 #1CFFFFFF</BoxShadows>
+      <LinearGradientBrush x:Key="ToastSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#EE242C3A" Offset="0" />
+        <GradientStop Color="#E61A202B" Offset="1" />
+      </LinearGradientBrush>
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+  <LinearGradientBrush x:Key="AeroAccentGradientBrush" StartPoint="0%,50%" EndPoint="100%,50%">
+    <GradientStop Color="#5CC2FF" Offset="0" />
+    <GradientStop Color="#8EE44E" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="AeroAmberGradientBrush" StartPoint="0%,50%" EndPoint="100%,50%">
+    <GradientStop Color="#FF8F1F" Offset="0" />
+    <GradientStop Color="#FFD15C" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="ProjectedStoragePreviewBrush" StartPoint="0%,50%" EndPoint="100%,50%">
+    <GradientStop Color="#E6FF9F1C" Offset="0" />
+    <GradientStop Color="#E6FFD15C" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="DockListFadeMask" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="#FF000000" Offset="0" />
+    <GradientStop Color="#FF000000" Offset="0.86" />
+    <GradientStop Color="#00000000" Offset="1" />
+  </LinearGradientBrush>
+</ResourceDictionary>

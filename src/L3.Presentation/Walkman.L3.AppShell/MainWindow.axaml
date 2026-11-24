@@ -1,0 +1,465 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Walkman.L3.AppShell.ViewModels"
+        xmlns:core="using:Walkman.L3.AppShell.Core"
+        xmlns:ctrl="using:Walkman.L3.AppShell.Controls"
+        xmlns:views="using:Walkman.L3.AppShell.Views"
+        x:Class="Walkman.L3.AppShell.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Apollo Manager"
+        Icon="/Assets/apollo-icon.ico"
+        Width="1440"
+        Height="900"
+        MinWidth="1260"
+        MinHeight="780"
+        WindowStartupLocation="CenterScreen">
+  <Grid x:Name="RootGrid"
+        Background="Transparent"
+        PointerMoved="OnRootPointerMoved"
+        PointerPressed="OnRootPointerPressed">
+    <!-- Atmospheric Neo-Frutiger Aero Daylight / Graphite Mesh Canvas -->
+    <ctrl:AeroStageBackgroundControl IsDark="{Binding IsDark}"
+                                     ReducedBlur="{Binding ReducedBlur}" />
+
+    <!-- START HUB LAYER (Idle Blobs -> Central Medallion -> 360 Crystal Ring + Utility Bar) -->
+    <Panel IsVisible="{Binding IsStartHub}">
+      <ctrl:BlobMorphCanvasControl x:Name="BlobCanvas"
+                                   Phase="{Binding StartPhase}"
+                                   IsDark="{Binding IsDark}"
+                                   ReducedBlur="{Binding ReducedBlur}"
+                                   IsStageActive="{Binding IsStartHub}" />
+
+      <ctrl:RadialGlassRingControl x:Name="StartGlassRing"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   DeviceConnected="{Binding IsDeviceConnected}"
+                                   IsDark="{Binding IsDark}" />
+
+      <ctrl:MetallicMedallionControl x:Name="CentralMedallion"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Phase="{Binding StartPhase}"
+                                     ConnectedDevice="{Binding ConnectedDevice}"
+                                     IsDark="{Binding IsDark}"
+                                     IsStageActive="{Binding IsStartHub}" />
+
+      <!-- Start Hub Unified Bottom Metallic Utility Bar (slides up when 360 Ring opens) -->
+      <Border Classes="utility-dock"
+              Classes.utility-open="{Binding IsStartHubRingExpanded}"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="0,0,0,22">
+        <ctrl:BrushedMetalPanel IsDark="{Binding IsDark}" CornerRadiusValue="22">
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6">
+            <Button Classes="metal-button"
+                    CornerRadius="16"
+                    Height="34"
+                    Padding="14,0"
+                    Command="{Binding OpenModuleByIdCommand}"
+                    CommandParameter="{x:Static core:ModuleIds.AllFeatures}"
+                    ToolTip.Tip="Browse all Apollo Manager tools (Ctrl+K)">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Grid}" Width="13" Height="13" StrokeThickness="1.8" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                <TextBlock Text="All Features" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+
+            <Button Classes="metal-button"
+                    CornerRadius="16"
+                    Height="34"
+                    Padding="14,0"
+                    Command="{Binding OpenModuleByIdCommand}"
+                    CommandParameter="{x:Static core:ModuleIds.Settings}"
+                    ToolTip.Tip="Application Settings (Ctrl+6)">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SettingsGear}" Width="13" Height="13" StrokeThickness="1.8" />
+                <TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </ctrl:BrushedMetalPanel>
+      </Border>
+    </Panel>
+
+    <!-- WORKSPACE VIEWPORT (dedicated bottom dock zone + explicit tab animation) -->
+    <Grid x:Name="WorkspaceHost"
+          IsVisible="{Binding IsWorkspace}"
+          Classes="workspace-root"
+          Classes.rail-open="{Binding ShowSidebarRail}"
+          Classes.blurred="{Binding IsJogDialBlurActive}"
+          HorizontalAlignment="Stretch">
+      <views:FileManagerView IsVisible="{Binding IsFileManagerActive}" />
+      <views:CodecConverterView IsVisible="{Binding IsCodecConverterActive}" />
+      <views:LibraryPlayerView IsVisible="{Binding IsLibraryActive}" />
+      <views:CustomizationView IsVisible="{Binding IsCustomizationActive}" />
+      <views:DeviceSystemView IsVisible="{Binding IsDeviceSystemActive}" />
+      <views:AllFeaturesView IsVisible="{Binding IsAllFeaturesActive}" />
+      <views:SettingsView IsVisible="{Binding IsSettingsActive}" />
+    </Grid>
+
+    <!-- DUAL FLOATING METALLIC BOTTOM TASKBAR (rendered below Jog Dial scrim/overlay) -->
+    <views:FloatingBottomDockView IsVisible="{Binding IsWorkspace}" />
+
+    <!-- WORKSPACE DIM SCRIM WHEN EDGE JOG DIAL IS POPPED OUT -->
+    <Border IsVisible="{Binding IsJogDialOpen}"
+            Background="{DynamicResource JogDialScrimBrush}"
+            PointerPressed="OnScrimPressed" />
+
+    <!-- POP-OUT EDGE JOG DIAL (default radial navigation, animated nav switch) -->
+    <ctrl:EdgeJogDialControl x:Name="EdgeJogDial"
+                             IsVisible="{Binding IsWorkspace}"
+                             Classes.nav-visible="{Binding ShowRadialJogDial}"
+                             Classes.nav-hidden="{Binding !ShowRadialJogDial}"
+                             IsOpen="{Binding IsJogDialOpen, Mode=TwoWay}"
+                             ActiveModuleId="{Binding ActiveModuleId}"
+                             DeviceConnected="{Binding IsDeviceConnected}"
+                             IsDark="{Binding IsDark}" />
+
+    <!-- UNIFIED BOTTOM-LEFT METALLIC UTILITY BAR (slides up when Edge Jog Dial opens) -->
+    <Border IsVisible="{Binding ShowRadialJogDial}"
+            Classes="utility-dock"
+            Classes.utility-open="{Binding IsJogDialOpen}"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Bottom"
+            Margin="22,0,0,22">
+      <ctrl:BrushedMetalPanel IsDark="{Binding IsDark}" CornerRadiusValue="22">
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6">
+          <Button Classes="metal-button"
+                  Classes.under-glow-green="{Binding IsDeviceConnected}"
+                  IsEnabled="{Binding IsDeviceConnected}"
+                  CornerRadius="16"
+                  Height="34"
+                  Padding="13,0"
+                  Command="{Binding SafeEjectCommand}"
+                  ToolTip.Tip="Safely unmount player">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Eject}" Width="13" Height="13" StrokeThickness="1.9" Foreground="{DynamicResource AeroLimeInkBrush}" />
+              <TextBlock Text="Safe Eject" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+
+          <Button Classes="metal-button"
+                  Classes.under-glow-blue="{Binding IsAllFeaturesActive}"
+                  CornerRadius="16"
+                  Height="34"
+                  Padding="13,0"
+                  Command="{Binding OpenModuleByIdCommand}"
+                  CommandParameter="{x:Static core:ModuleIds.AllFeatures}"
+                  ToolTip.Tip="All Features (Ctrl+K)">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Grid}" Width="13" Height="13" StrokeThickness="1.8" Foreground="{DynamicResource AeroSkyInkBrush}" />
+              <TextBlock Text="All Features" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+
+          <Button Classes="metal-button"
+                  Classes.under-glow-blue="{Binding IsSettingsActive}"
+                  CornerRadius="16"
+                  Height="34"
+                  Padding="13,0"
+                  Command="{Binding OpenModuleByIdCommand}"
+                  CommandParameter="{x:Static core:ModuleIds.Settings}"
+                  ToolTip.Tip="Settings (Ctrl+6)">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SettingsGear}" Width="13" Height="13" StrokeThickness="1.8" />
+              <TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </ctrl:BrushedMetalPanel>
+    </Border>
+
+    <!-- OPTIONAL COMPACT SIDEBAR RAIL (toggled in Settings instead of Edge Jog Dial) -->
+    <ctrl:BrushedMetalPanel IsVisible="{Binding ShowSidebarRail}"
+                            Classes="sidebar-rail"
+                            IsDark="{Binding IsDark}"
+                            CornerRadiusValue="22"
+                            Width="66"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Margin="16,44,0,44">
+      <StackPanel Spacing="8" Margin="9,12">
+        <Button Classes="glass-clear"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Click="OnSidebarHomeClicked"
+                ToolTip.Tip="Return to Start menu">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Home}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Border Height="1" Background="{DynamicResource RowDividerBrush}" Margin="4,2" />
+
+        <Button Classes="metal-button"
+                Classes.under-glow-green="{Binding IsFileManagerActive}"
+                IsEnabled="{Binding IsDeviceConnected}"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.FileManager}"
+                ToolTip.Tip="File Manager (Ctrl+1)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Swap}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Button Classes="metal-button"
+                Classes.under-glow-green="{Binding IsLibraryActive}"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.Library}"
+                ToolTip.Tip="My Library (Ctrl+2)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Music}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Button Classes="metal-button"
+                Classes.under-glow-blue="{Binding IsCodecConverterActive}"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.Converter}"
+                ToolTip.Tip="Codec Converter (Ctrl+3)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.AudioLines}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Button Classes="metal-button"
+                Classes.under-glow-blue="{Binding IsCustomizationActive}"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.Customization}"
+                ToolTip.Tip="Customization (Ctrl+4)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Captions}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Button Classes="metal-button"
+                Classes.under-glow-blue="{Binding IsDeviceSystemActive}"
+                Width="46"
+                Height="44"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.DeviceSystem}"
+                ToolTip.Tip="Device &amp; System (Ctrl+5)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Wrench}" Width="16" Height="16" StrokeThickness="1.9" />
+        </Button>
+
+        <Border Height="1" Background="{DynamicResource RowDividerBrush}" Margin="4,2" />
+
+        <Button Classes="glass-clear"
+                Classes.under-glow-green="{Binding IsAllFeaturesActive}"
+                Width="46"
+                Height="40"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.AllFeatures}"
+                ToolTip.Tip="All Features (Ctrl+K)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Grid}" Width="15" Height="15" StrokeThickness="1.8" />
+        </Button>
+
+        <Button Classes="glass-clear"
+                Classes.under-glow-green="{Binding IsSettingsActive}"
+                Width="46"
+                Height="40"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding OpenModuleByIdCommand}"
+                CommandParameter="{x:Static core:ModuleIds.Settings}"
+                ToolTip.Tip="Settings (Ctrl+6)">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SettingsGear}" Width="15" Height="15" StrokeThickness="1.8" />
+        </Button>
+
+        <Button Classes="glass-clear"
+                IsEnabled="{Binding IsDeviceConnected}"
+                Width="46"
+                Height="40"
+                CornerRadius="14"
+                Padding="0"
+                Command="{Binding SafeEjectCommand}"
+                ToolTip.Tip="Safe Eject Player">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Eject}" Width="15" Height="15" StrokeThickness="1.8" Foreground="{DynamicResource AeroLimeInkBrush}" />
+        </Button>
+      </StackPanel>
+    </ctrl:BrushedMetalPanel>
+
+    <!-- MINIMAL CORNER QUICK CONTROLS (aligned with workspace header bounds) -->
+    <Grid IsVisible="{Binding ShowTopControls}"
+          Margin="92,14,24,0"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Top">
+      <StackPanel Orientation="Horizontal"
+                  Spacing="8"
+                  HorizontalAlignment="Right">
+        <Button Classes="glass-clear"
+                Classes.under-glow-green="{Binding IsDeviceConnected}"
+                CornerRadius="16"
+                Height="32"
+                Padding="12,0"
+                Command="{Binding ToggleQuickConnectCommand}"
+                ToolTip.Tip="Toggle paired player connection">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Usb}"
+                             Width="13"
+                             Height="13"
+                             StrokeThickness="1.8"
+                             Foreground="{DynamicResource AeroLimeInkBrush}" />
+            <TextBlock Text="{Binding TopUsbPillText}"
+                       FontSize="12"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+
+        <Button Classes="glass-clear"
+                IsVisible="{Binding IsStartHub}"
+                Width="32"
+                Height="32"
+                CornerRadius="16"
+                Padding="0"
+                Command="{Binding ReplayIntroCommand}"
+                ToolTip.Tip="Replay blob intro animation">
+          <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Replay}" Width="14" Height="14" StrokeThickness="1.9" />
+        </Button>
+
+        <Button Classes="glass-clear"
+                Width="32"
+                Height="32"
+                CornerRadius="16"
+                Padding="0"
+                Command="{Binding ToggleThemeCommand}"
+                ToolTip.Tip="Switch Light / Dark theme (Ctrl+T)">
+          <Panel>
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Moon}" Width="14" Height="14" StrokeThickness="1.9" IsVisible="{Binding !IsDark}" />
+            <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Sun}" Width="14" Height="14" StrokeThickness="1.9" IsVisible="{Binding IsDark}" />
+          </Panel>
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- GLOBAL AERO TOAST NOTIFICATION STACK (non-blocking, top-right) -->
+    <ItemsControl IsVisible="{Binding HasToasts}"
+                  ItemsSource="{Binding Toasts}"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Top"
+                  Margin="0,56,24,0"
+                  Width="350">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="core:ToastItem">
+          <Border Classes="aero-toast"
+                  Classes.warning="{Binding IsWarning}"
+                  Classes.error="{Binding IsError}"
+                  Classes.success="{Binding IsSuccess}"
+                  Margin="0,0,0,8">
+            <Grid ColumnDefinitions="Auto,*,10,Auto">
+              <Panel Grid.Column="0" Margin="0,1,8,1">
+                <Border Width="3" CornerRadius="1.5" Background="{DynamicResource AeroDangerInkBrush}" IsVisible="{Binding IsWarning}" />
+                <Border Width="3" CornerRadius="1.5" Background="{DynamicResource AeroDangerInkBrush}" IsVisible="{Binding IsError}" />
+                <Border Width="3" CornerRadius="1.5" Background="{DynamicResource AeroLimeInkBrush}" IsVisible="{Binding IsSuccess}" />
+              </Panel>
+              <StackPanel Grid.Column="1" Spacing="2">
+                <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="Bold" />
+                <TextBlock Text="{Binding Message}" FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Grid.Column="3"
+                      Classes="glass-clear"
+                      Width="22"
+                      Height="22"
+                      CornerRadius="11"
+                      Padding="0"
+                      VerticalAlignment="Top"
+                      Click="OnDismissToastClicked">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="10" Height="10" StrokeThickness="2" />
+              </Button>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- GLOBAL CENTERED CONFIRMATION MODAL (destructive actions & confirmations) -->
+    <Grid IsVisible="{Binding HasConfirmDialog}"
+          Background="{DynamicResource ModalBackdropBrush}">
+      <Border Classes="aero-modal-card"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="420">
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{Binding ActiveConfirmDialog.Title, FallbackValue=Confirm}"
+                       FontSize="18"
+                       FontWeight="Bold" />
+            <TextBlock Text="{Binding ActiveConfirmDialog.Message, FallbackValue=Proceed?}"
+                       FontSize="13"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+            <Button Classes="glass-clear"
+                    Command="{Binding CancelActiveDialogCommand}"
+                    Content="Cancel"
+                    Padding="16,8"
+                    CornerRadius="14" />
+            <Button Classes="metal-button"
+                    Classes.under-glow-danger="{Binding ActiveConfirmDialog.IsDestructive, FallbackValue=False}"
+                    Classes.under-glow-green="{Binding !ActiveConfirmDialog.IsDestructive, FallbackValue=True}"
+                    Command="{Binding ConfirmActiveDialogCommand}"
+                    Content="{Binding ActiveConfirmDialog.ConfirmLabel, FallbackValue=Confirm}"
+                    Padding="18,8"
+                    CornerRadius="14"
+                    FontWeight="Bold" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+    <!-- GLOBAL CENTERED INPUT MODAL (New / Rename Collection) -->
+    <Grid IsVisible="{Binding HasInputDialog}"
+          Background="{DynamicResource ModalBackdropBrush}">
+      <Border Classes="aero-modal-card"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="420">
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding ActiveInputDialog.Title, FallbackValue=Collection}"
+                       FontSize="18"
+                       FontWeight="Bold" />
+            <TextBlock Text="{Binding ActiveInputDialog.Prompt, FallbackValue=Enter name:}"
+                       FontSize="13.5"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+
+          <TextBox x:Name="InputDialogTextBox"
+                   Classes="glass-input"
+                   Text="{Binding InputDialogText}"
+                   Height="38"
+                   FontSize="13.5" />
+
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+            <Button Classes="glass-clear"
+                    Command="{Binding CancelInputDialogCommand}"
+                    Content="Cancel"
+                    Padding="16,8"
+                    CornerRadius="14" />
+            <Button Classes="metal-button under-glow-green"
+                    Command="{Binding ConfirmInputDialogCommand}"
+                    Content="{Binding ActiveInputDialog.ConfirmLabel, FallbackValue=Save}"
+                    Padding="18,8"
+                    CornerRadius="14"
+                    FontWeight="Bold" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

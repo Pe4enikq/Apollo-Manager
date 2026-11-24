@@ -42,6 +42,8 @@ public interface IPluginRegistrationContext
 
     void RegisterEngineService<TService>(TService implementation) where TService : class;
 
+    TService? TryResolveEngine<TService>() where TService : class;
+
     void RegisterCommandHandler<TCommand, TResponse>(ICommandHandler<TCommand, TResponse> handler)
         where TCommand : ICommand<TResponse>;
 

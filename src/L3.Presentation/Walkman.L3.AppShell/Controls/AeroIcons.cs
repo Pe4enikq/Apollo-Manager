@@ -1,0 +1,53 @@
+namespace Walkman.L3.AppShell.Controls;
+
+public static class AeroIcons
+{
+    public const string FolderOpen = "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2M3 10.5h18l-1.5 7a2 2 0 0 1-2 1.5H5.5a2 2 0 0 1-2-1.5L3 10.5Z";
+    public const string Search = "M10.5 4a6.5 6.5 0 1 0 0.01 0ZM15.2 15.2L20 20";
+    public const string ArrowRight = "M4.5 12h14.5M14 7l5 5-5 5";
+    public const string Swap = "M4 8h15m0 0l-3-3m3 3l-3 3M20 16H5m0 0l3-3m-3 3l3 3";
+    public const string Play = "M7 5.5v13l11-6.5L7 5.5Z";
+    public const string Pause = "M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z";
+    public const string SkipBack = "M18 6v12l-8.5-6L18 6ZM6 6v12";
+    public const string SkipForward = "M6 6v12l8.5-6L6 6ZM18 6v12";
+    public const string Close = "M6 6l12 12M18 6L6 18";
+    public const string Lock = "M7 11V8a5 5 0 0 1 10 0v3M6 11h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Zm6 4v2";
+    public const string Unlock = "M7 11V8a5 5 0 0 1 9.6-2M6 11h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Zm6 4v2";
+    public const string Usb = "M12 3v15.5M9.5 5.5L12 3l2.5 2.5M12 15l-5-3.5V9.5M7 8.5a1.5 1.5 0 1 0 0.01 0ZM12 13l5-3.5V7.5h-2.5v2.5M12 18.5a1.8 1.8 0 1 0 0.01 0Z";
+    public const string Sun = "M12 7a5 5 0 1 0 0.01 0ZM12 2.5v2M12 19.5v2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M2.5 12h2M19.5 12h2M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4";
+    public const string Moon = "M19.5 14.2A7.5 7.5 0 0 1 9.8 4.5a7.5 7.5 0 1 0 9.7 9.7Z";
+    public const string Replay = "M4.5 11.5a7.5 7.5 0 1 1 2.1 5.3M4.5 6v5.5H10";
+    public const string Shield = "M12 3.2L4.5 6.5v5.3c0 4.5 3.2 8.3 7.5 9.5 4.3-1.2 7.5-5 7.5-9.5V6.5L12 3.2Z";
+    public const string Disc = "M12 3.5a8.5 8.5 0 1 0 0.01 0ZM12 9.4a2.6 2.6 0 1 0 0.01 0Z";
+    public const string CheckCircle = "M12 3.5a8.5 8.5 0 1 0 0.01 0ZM8.5 12.2l2.4 2.4 4.8-5";
+    public const string AudioLines = "M3 12h2M7.5 7v10M12 4v16M16.5 8.5v7M21 10.5v3";
+    public const string Music = "M9 17.5V6l10-1.5V16M6.8 17.5a2.3 2.3 0 1 0 0.01 0ZM16.8 16a2.3 2.3 0 1 0 0.01 0Z";
+    public const string Monitor = "M3 5h18v11.5H3V5ZM8 20h8M12 16.5V20M6.5 12l3-3 3.5 3.5L17.5 8";
+    public const string Captions = "M3 5.5h18v13H3v-13ZM6.5 10.5h4.5M13.5 10.5h4M6.5 14h6.5M15 14h2.5";
+    public const string Tags = "M4 12l7.5-7.5H20v8.5L12.5 20.5 4 12ZM15.5 8.5a1 1 0 1 0 0.01 0Z";
+    public const string Cpu = "M6.5 6.5h11v11h-11v-11ZM9.5 9.5h5v5h-5v-5ZM9.5 3.5v3M14.5 3.5v3M9.5 17.5v3M14.5 17.5v3M3.5 9.5h3M3.5 14.5h3M17.5 9.5h3M17.5 14.5h3";
+    public const string Upload = "M12 15.5V4M8 8l4-4 4 4M4.5 16.5v2.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2.5";
+    public const string Battery = "M3.5 8h14.5v8H3.5V8ZM18 10.5h2v3h-2M7 10.8v2.4M10.5 10.8v2.4";
+    public const string ArrowUpRight = "M7 17L17 7M9 7h8v8";
+    public const string Wrench = "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a5 5 0 0 1-6.9 6.9l-6.4 6.4a1.8 1.8 0 0 1-2.5-2.5l6.4-6.4a5 5 0 0 1 6.9-6.9l-3.6 3.6Z";
+    public const string DumpArchive = "M4 6h16v4H4V6Zm1.5 4h13v8.5a1.5 1.5 0 0 1-1.5 1.5h-10a1.5 1.5 0 0 1-1.5-1.5V10Zm4.5 4h4";
+    public const string TechInfo = "M12 4a8 8 0 1 0 0.01 0ZM12 10.5v5.5M12 7.5h0.01";
+    public const string VolumeHigh = "M4 9.5h4l4.5-3.5v12L8 14.5H4v-5Zm11.5-1.5a5.5 5.5 0 0 1 0 8M18 5.5a9 9 0 0 1 0 13";
+    public const string VolumeMuted = "M4 9.5h4l4.5-3.5v12L8 14.5H4v-5Zm12 0l4 5m0-5l-4 5";
+    public const string Trash = "M4 6.5h16M9.5 4h5v2.5h-5V4ZM6.5 6.5l1 13a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5l1-13";
+    public const string Home = "M4 11l8-6.5L20 11v8.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11Z";
+    public const string Eject = "M12 5.5L5.5 13h13L12 5.5ZM5.5 16.5h13";
+    public const string Grid = "M4 4h6.5v6.5H4V4Zm9.5 0H20v6.5h-6.5V4ZM4 13.5h6.5V20H4v-6.5Zm9.5 0H20V20h-6.5v-6.5Z";
+    public const string SettingsGear = "M12 8.5a3.5 3.5 0 1 0 0.01 0ZM19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z";
+    public const string Sparkles = "M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6L12 3ZM18 16l.8 2.2 2.2.8-2.2.8L18 22l-.8-2.2-2.2-.8 2.2-.8L18 16Z";
+    public const string CheckAll = "M3.5 12.5l4 4 8.5-9M10.5 16.5l2 2 8-8.5";
+    public const string Shuffle = "M16 4h4v4M4 18l5.5-5.5M14.5 7.5L20 4M4 6l16 12M16 20h4v-4";
+    public const string Repeat = "M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4";
+    public const string SortArrows = "M8 5v14M5 8l3-3 3 3M16 19V5M13 16l3 3 3-3";
+    public const string FolderClosed = "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z";
+    public const string ChevronRight = "M9 6l6 6-6 6";
+    public const string ChevronDown = "M6 9l6 6 6-6";
+    public const string Plus = "M12 5v14M5 12h14";
+    public const string CollapseAll = "M7 4l5 5 5-5M7 20l5-5 5 5M4 12h16";
+    public const string InfoCircle = TechInfo;
+}
