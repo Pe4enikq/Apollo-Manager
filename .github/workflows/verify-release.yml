@@ -1,0 +1,115 @@
+name: Verify Release on Clean Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to verify'
+        required: true
+        default: 'v0.1.0-beta.1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-clean-win-x64:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOTNET_MULTILEVEL_LOOKUP: '0'
+    steps:
+      - name: Download published release assets to isolated directory
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag }}"
+          $work = "C:\apollo-clean-test"
+          New-Item -ItemType Directory -Path $work -Force | Out-Null
+          gh release download $tag --repo "${{ github.repository }}" --dir $work
+          Get-ChildItem $work | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Verify SHA256SUMS.txt
+        shell: pwsh
+        run: |
+          $work = "C:\apollo-clean-test"
+          $lines = Get-Content "$work\SHA256SUMS.txt" | Where-Object { $_.Trim() -ne "" }
+          foreach ($line in $lines) {
+            if ($line -match '^([0-9a-fA-F]{64})\s+(.+)$') {
+              $expected = $Matches[1].ToLowerInvariant()
+              $file = $Matches[2].Trim()
+              $actual = (Get-FileHash (Join-Path $work $file) -Algorithm SHA256).Hash.ToLowerInvariant()
+              if ($actual -ne $expected) {
+                throw "SHA-256 mismatch for $file! Expected $expected, got $actual"
+              }
+              Write-Host "SHA-256 OK: $file ($actual)"
+            }
+          }
+
+      - name: Verify Portable ZIP (--verify-standalone, codec CLIs, & GUI capture)
+        shell: pwsh
+        run: |
+          $work = "C:\apollo-clean-test"
+          $zip = Get-ChildItem $work -Filter "*-portable.zip" | Select-Object -First 1
+          $portDir = "$work\portable"
+          Expand-Archive -Path $zip.FullName -DestinationPath $portDir -Force
+
+          $exe = Join-Path $portDir "Apollo Manager.exe"
+          if (-not (Test-Path $exe)) { throw "Missing Apollo Manager.exe in portable zip" }
+
+          # Strip global PATH/DOTNET_ROOT to force strictly self-contained runtime usage
+          $env:DOTNET_ROOT = ""
+
+          Write-Host "=== Running --verify-standalone (Portable) ==="
+          & $exe --verify-standalone
+          if ($LASTEXITCODE -ne 0) { throw "Portable --verify-standalone failed with exit code $LASTEXITCODE" }
+
+          Write-Host "=== Checking external codec CLIs (VC++ / DLL dependencies) ==="
+          $atrac = Join-Path $portDir "tools\atracdenc\atracdenc.exe"
+          & $atrac -h | Out-Null
+          Write-Host "atracdenc.exe launch check exit=$LASTEXITCODE"
+
+          $vgm = Join-Path $portDir "tools\vgmstream\vgmstream-cli.exe"
+          & $vgm -h | Out-Null
+          Write-Host "vgmstream-cli.exe launch check exit=$LASTEXITCODE"
+
+          Write-Host "=== Running --capture-screens (Portable GUI smoke test) ==="
+          $screensDir = "$work\portable-screens"
+          $stderrFile = "$work\portable-stderr.txt"
+          $proc = Start-Process -FilePath $exe -ArgumentList "--capture-screens=$screensDir" -Wait -PassThru -NoNewWindow -RedirectStandardError $stderrFile
+          if ($proc.ExitCode -ne 0) {
+            if (Test-Path $stderrFile) { Get-Content $stderrFile }
+            throw "Portable --capture-screens failed with exit code $($proc.ExitCode)"
+          }
+          $pngs = Get-ChildItem $screensDir -Filter "*.png" -ErrorAction SilentlyContinue
+          Write-Host "Rendered PNG count: $($pngs.Count)"
+          if ($pngs.Count -lt 10) { throw "Expected >= 10 rendered GUI PNGs, got $($pngs.Count)" }
+          $errBytes = if (Test-Path $stderrFile) { (Get-Item $stderrFile).Length } else { 0 }
+          Write-Host "GUI stderr bytes: $errBytes"
+          if ($errBytes -gt 0) { Get-Content $stderrFile }
+
+      - name: Verify Inno Setup Installer (silent install -> --verify-standalone -> silent uninstall)
+        shell: pwsh
+        run: |
+          $work = "C:\apollo-clean-test"
+          $setup = Get-ChildItem $work -Filter "*-setup.exe" | Select-Object -First 1
+          $installDir = "$work\installed"
+
+          Write-Host "=== Running silent Inno Setup install ==="
+          $pInstall = Start-Process -FilePath $setup.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /DIR=`"$installDir`"" -Wait -PassThru
+          if ($pInstall.ExitCode -ne 0) { throw "Installer failed with exit code $($pInstall.ExitCode)" }
+
+          $exe = Join-Path $installDir "Apollo Manager.exe"
+          if (-not (Test-Path $exe)) { throw "Installed Apollo Manager.exe not found at $exe" }
+
+          $env:DOTNET_ROOT = ""
+          Write-Host "=== Running --verify-standalone (Installed) ==="
+          & $exe --verify-standalone
+          if ($LASTEXITCODE -ne 0) { throw "Installed --verify-standalone failed with exit code $LASTEXITCODE" }
+
+          Write-Host "=== Running silent Inno Setup uninstall ==="
+          $unins = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $unins)) { throw "Uninstaller not found at $unins" }
+          $pUnins = Start-Process -FilePath $unins -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait -PassThru
+          if ($pUnins.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($pUnins.ExitCode)" }
+          Start-Sleep -Seconds 2
+          if (Test-Path $exe) { throw "Apollo Manager.exe still exists after uninstall!" }
+          Write-Host "Clean install + verify + uninstall PASSED!"
