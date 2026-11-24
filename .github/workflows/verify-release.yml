@@ -68,12 +68,18 @@ jobs:
 
           Write-Host "=== Checking external codec CLIs (VC++ / DLL dependencies) ==="
           $atrac = Join-Path $portDir "tools\atracdenc\atracdenc.exe"
-          & $atrac -h | Out-Null
+          $atracOut = (& $atrac -h 2>&1) | Out-String
           Write-Host "atracdenc.exe launch check exit=$LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { throw "atracdenc.exe failed to launch (exit=$LASTEXITCODE): $atracOut" }
 
           $vgm = Join-Path $portDir "tools\vgmstream\vgmstream-cli.exe"
-          & $vgm -h | Out-Null
-          Write-Host "vgmstream-cli.exe launch check exit=$LASTEXITCODE"
+          $vgmOut = (& $vgm -h 2>&1) | Out-String
+          $vgmExit = $LASTEXITCODE
+          $global:LASTEXITCODE = 0
+          Write-Host "vgmstream-cli.exe launch check exit=$vgmExit"
+          if ($vgmExit -notin @(0, 1) -or ($vgmOut -notmatch "vgmstream")) {
+            throw "vgmstream-cli.exe failed to launch cleanly (exit=$vgmExit)"
+          }
 
           Write-Host "=== Running --capture-screens (Portable GUI smoke test) ==="
           $screensDir = "$work\portable-screens"
