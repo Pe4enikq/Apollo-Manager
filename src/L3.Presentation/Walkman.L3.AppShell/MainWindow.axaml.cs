@@ -73,6 +73,16 @@ public partial class MainWindow : Window
             _vm.ReturnToStartHub();
         };
 
+        OnboardingOverlay.DismissRequested += dontShowAgain =>
+        {
+            _vm.DismissOnboardingGuide(dontShowAgain);
+        };
+        OnboardingOverlay.NavigateModuleRequested += moduleId =>
+        {
+            _vm.DismissOnboardingGuide(dontShowAgain: true);
+            _vm.OpenModule(moduleId);
+        };
+
         _vm.IntroReplayedRequested += () =>
         {
             _introCooldownUntilUtc = DateTime.UtcNow.AddMilliseconds(1200);
@@ -245,6 +255,11 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         try
         {
+            if (_captureDir is null)
+            {
+                EnsureWindowFitsWorkingArea();
+            }
+
             RegisterUsbHotPlugHook();
 
             if (_captureDir is not null)
@@ -259,6 +274,39 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _vm.ShowToast("Startup Error", ex.Message, ToastSeverity.Error);
+        }
+    }
+
+    private void EnsureWindowFitsWorkingArea()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null)
+        {
+            return;
+        }
+
+        double scaling = screen.Scaling > 0 ? screen.Scaling : (RenderScaling > 0 ? RenderScaling : 1.0);
+        var work = screen.WorkingArea;
+        double workWidthDip = work.Width / scaling;
+        double workHeightDip = work.Height / scaling;
+
+        if (workWidthDip < Width)
+        {
+            Width = Math.Max(MinWidth, Math.Floor(workWidthDip - 16));
+        }
+
+        if (workHeightDip < Height)
+        {
+            Height = Math.Max(MinHeight, Math.Floor(workHeightDip - 16));
+        }
+
+        int targetPxW = (int)Math.Round(Width * scaling);
+        int targetPxH = (int)Math.Round(Height * scaling);
+        int clampedX = Math.Clamp(Position.X, work.X, Math.Max(work.X, work.Right - targetPxW));
+        int clampedY = Math.Clamp(Position.Y, work.Y, Math.Max(work.Y, work.Bottom - targetPxH));
+        if (clampedX != Position.X || clampedY != Position.Y)
+        {
+            Position = new PixelPoint(clampedX, clampedY);
         }
     }
 
@@ -437,6 +485,20 @@ public partial class MainWindow : Window
 
         if (e.Key == Key.Escape)
         {
+            if (_vm.IsOpenMgRuntimePromptOpen)
+            {
+                _vm.DismissOpenMgRuntimePromptCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (_vm.IsOnboardingOpen)
+            {
+                _vm.DismissOnboardingGuide(dontShowAgain: _vm.HasCompletedOnboarding);
+                e.Handled = true;
+                return;
+            }
+
             if (_vm.HasInputDialog)
             {
                 _vm.CancelInputDialogCommand.Execute(null);
@@ -684,5 +746,16 @@ public partial class MainWindow : Window
         // 19. Settings (Persisted Preferences, Demo Mode Toggle, Sidebar Rail Toggle)
         _vm.OpenModule(ModuleIds.Settings);
         await Snap("19_settings.png");
+
+        // 20. Decoupled Onboarding Starting Guide Overlay (UI-17)
+        _vm.IsOnboardingOpen = true;
+        await Snap("20_onboarding_overlay.png");
+        _vm.IsOnboardingOpen = false;
+
+        // 21. Legal 3-Choice OpenMG Missing-Runtime Prompt (COD-10)
+        _vm.OpenMgRuntimePromptMessage = "Free 0x0001 ATRAC3+ slots are exhausted and Sony OpenMG Secure Module (hdwmcom.dll) was not found on this PC.";
+        _vm.IsOpenMgRuntimePromptOpen = true;
+        await Snap("21_openmg_runtime_prompt.png");
+        _vm.IsOpenMgRuntimePromptOpen = false;
     }
 }

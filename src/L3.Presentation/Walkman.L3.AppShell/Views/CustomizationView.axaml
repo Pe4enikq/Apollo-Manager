@@ -383,7 +383,8 @@
                         HorizontalAlignment="Stretch"
                         Height="34" />
               <Grid Grid.Column="2">
-                <TextBox Classes="glass-input"
+                <TextBox x:Name="TagSearchBox"
+                         Classes="glass-input"
                          Text="{Binding CustomTrackSearch}"
                          Watermark="Search..."
                          Padding="28,4,26,4"

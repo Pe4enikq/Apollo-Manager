@@ -107,8 +107,10 @@
         "BytesPerFrame": 720,
         "Magic": "NwE400_0xEC01",
         "ColumnStripeMangled": true,
-        "MaxFileSizeBytes": 45056,
-        "MaxUniqueBitmaps": 56,
+        "MaxFileSizeBytes": 58368,
+        "MaxUniqueBitmaps": 80,
+        "MaxFrameCount": 200,
+        "EnforceStrictFileSizeCap": true,
         "TargetFolders": ["SCREEN", "NWWM-SCR"]
       },
       "Markers": {
@@ -233,8 +235,10 @@
         "BytesPerFrame": 720,
         "Magic": "NwE400_0xEC01",
         "ColumnStripeMangled": true,
-        "MaxFileSizeBytes": 45056,
-        "MaxUniqueBitmaps": 56,
+        "MaxFileSizeBytes": 58368,
+        "MaxUniqueBitmaps": 80,
+        "MaxFrameCount": 200,
+        "EnforceStrictFileSizeCap": true,
         "TargetFolders": ["SCREEN", "NWWM-SCR"]
       },
       "Markers": {
@@ -438,8 +442,10 @@
         "BytesPerFrame": 720,
         "Magic": "NwE400_0xEC01",
         "ColumnStripeMangled": true,
-        "MaxFileSizeBytes": 45056,
-        "MaxUniqueBitmaps": 56,
+        "MaxFileSizeBytes": 58368,
+        "MaxUniqueBitmaps": 80,
+        "MaxFrameCount": 200,
+        "EnforceStrictFileSizeCap": true,
         "TargetFolders": ["SCREEN", "NWWM-SCR"]
       },
       "Markers": {
@@ -560,6 +566,7 @@
         "ColumnStripeMangled": false,
         "MaxFileSizeBytes": 65536,
         "MaxUniqueBitmaps": 40,
+        "EnforceStrictFileSizeCap": false,
         "TargetFolders": ["SCREEN"]
       },
       "Markers": {
@@ -682,6 +689,7 @@
         "ColumnStripeMangled": false,
         "MaxFileSizeBytes": 32768,
         "MaxUniqueBitmaps": 40,
+        "EnforceStrictFileSizeCap": false,
         "TargetFolders": ["SCREEN"]
       },
       "Markers": {

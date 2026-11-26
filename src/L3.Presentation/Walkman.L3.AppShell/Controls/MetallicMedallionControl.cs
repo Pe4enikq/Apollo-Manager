@@ -62,8 +62,10 @@ public sealed class MetallicMedallionControl : Control
     private const float CenterX = 130f;
     private const float CenterY = 190f; // Aligned at exact midpoint of control
     private const float MedallionRadius = 116f;
+    private const float MedallionPad = 24f;
     private const float PlusCenterY = CenterY + 154f; // 344
     private const float PlusRadius = 26f;
+    private const float PlusPad = 14f;
     private const float CollapseCenterY = CenterY + MedallionRadius; // 306
     private const float CollapseRadius = 18f;
 
@@ -74,6 +76,9 @@ public sealed class MetallicMedallionControl : Control
     private const double MinFrameIntervalSec = 1.0 / 60.0;
     private bool _isAttached;
     private bool _frameRequested;
+    private Window? _hostWindow;
+    private readonly Dictionary<(bool IsDark, string DeviceKey), AeroSkiaHelpers.RefCountedSkImage> _medallionCache = new();
+    private readonly Dictionary<bool, AeroSkiaHelpers.RefCountedSkImage> _plusCache = new();
 
     private double _revealT;
     private double _expandT;
@@ -96,6 +101,7 @@ public sealed class MetallicMedallionControl : Control
         ConnectedDeviceProperty.Changed.AddClassHandler<MetallicMedallionControl>((c, _) => c.OnDeviceChanged());
         IsDarkProperty.Changed.AddClassHandler<MetallicMedallionControl>((c, _) => c.InvalidateVisual());
         IsStageActiveProperty.Changed.AddClassHandler<MetallicMedallionControl>((c, _) => c.StartAnimationIfNeeded());
+        IsVisibleProperty.Changed.AddClassHandler<MetallicMedallionControl>((c, _) => c.StartAnimationIfNeeded());
     }
 
     public void SnapStateForPhase(StartScreenPhase phase)
@@ -116,13 +122,41 @@ public sealed class MetallicMedallionControl : Control
     {
         base.OnAttachedToVisualTree(e);
         _isAttached = true;
+        _hostWindow = TopLevel.GetTopLevel(this) as Window;
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged += OnHostWindowPropertyChanged;
+        }
         OnPhaseChanged();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isAttached = false;
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged -= OnHostWindowPropertyChanged;
+            _hostWindow = null;
+        }
+        foreach (var holder in _medallionCache.Values)
+        {
+            holder.Release();
+        }
+        _medallionCache.Clear();
+        foreach (var holder in _plusCache.Values)
+        {
+            holder.Release();
+        }
+        _plusCache.Clear();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnHostWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Window.WindowStateProperty)
+        {
+            StartAnimationIfNeeded();
+        }
     }
 
     private void OnPhaseChanged()
@@ -151,7 +185,7 @@ public sealed class MetallicMedallionControl : Control
 
     private bool NeedsAnimation()
     {
-        if (!IsStageActive || (TopLevel.GetTopLevel(this) as Window)?.WindowState == WindowState.Minimized)
+        if (!IsStageActive || !IsVisible || (_hostWindow?.WindowState ?? (TopLevel.GetTopLevel(this) as Window)?.WindowState) == WindowState.Minimized)
         {
             return false;
         }
@@ -231,7 +265,7 @@ public sealed class MetallicMedallionControl : Control
                                  && Math.Abs(_expandT - targetExpand) <= 0.003
                                  && !HoverNeedsAnim();
 
-        if (!onlyDotsAnimating || now - _lastDotRenderSec >= 0.066)
+        if (!onlyDotsAnimating || now - _lastDotRenderSec >= 1.0 / 30.0)
         {
             _lastDotRenderSec = now;
             InvalidateVisual();
@@ -332,12 +366,85 @@ public sealed class MetallicMedallionControl : Control
         return HoverTarget.None;
     }
 
+    private AeroSkiaHelpers.RefCountedSkImage GetOrBakeMedallionBase()
+    {
+        string devKey = ConnectedDevice is null
+            ? string.Empty
+            : string.Create(CultureInfo.InvariantCulture, $"{ConnectedDevice.Model}|{ConnectedDevice.BatteryPct}|{ConnectedDevice.StorageFreeGb:F1}|{ConnectedDevice.StorageUsedPercent:F1}");
+
+        var key = (IsDark, devKey);
+        if (_medallionCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        const float ss = 2f;
+        float logicalSize = (MedallionRadius + MedallionPad) * 2f;
+        int pxSize = (int)MathF.Ceiling(logicalSize * ss);
+        float c = logicalSize * 0.5f;
+
+        using var bmp = new SKBitmap(pxSize, pxSize, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bmp))
+        {
+            canvas.Clear(SKColors.Transparent);
+            canvas.Scale(ss);
+            MedallionDrawOp.BakeStaticMedallionPlate(canvas, c, c, IsDark, ConnectedDevice);
+        }
+
+        AeroSkiaHelpers.ApplyTriangularDither(bmp, 0.9f);
+        var holder = new AeroSkiaHelpers.RefCountedSkImage(SKImage.FromBitmap(bmp));
+        if (_medallionCache.Count >= 6)
+        {
+            foreach (var old in _medallionCache.Values)
+            {
+                old.Release();
+            }
+            _medallionCache.Clear();
+        }
+        _medallionCache[key] = holder;
+        return holder;
+    }
+
+    private AeroSkiaHelpers.RefCountedSkImage GetOrBakePlusBase()
+    {
+        if (_plusCache.TryGetValue(IsDark, out var cached))
+        {
+            return cached;
+        }
+
+        const float ss = 2f;
+        float logicalSize = (PlusRadius + PlusPad) * 2f;
+        int pxSize = (int)MathF.Ceiling(logicalSize * ss);
+        float c = logicalSize * 0.5f;
+
+        using var bmp = new SKBitmap(pxSize, pxSize, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using (var canvas = new SKCanvas(bmp))
+        {
+            canvas.Clear(SKColors.Transparent);
+            canvas.Scale(ss);
+            MedallionDrawOp.BakeStaticPlusButton(canvas, c, c, IsDark);
+        }
+
+        AeroSkiaHelpers.ApplyTriangularDither(bmp, 0.9f);
+        var holder = new AeroSkiaHelpers.RefCountedSkImage(SKImage.FromBitmap(bmp));
+        _plusCache[IsDark] = holder;
+        return holder;
+    }
+
     public override void Render(DrawingContext context)
     {
         if (_revealT <= 0.01)
         {
             return;
         }
+
+        var medallionHolder = _isAttached ? GetOrBakeMedallionBase() : null;
+        var medallionImg = medallionHolder?.TryAcquire();
+        if (medallionImg is null) medallionHolder = null;
+
+        var plusHolder = _isAttached ? GetOrBakePlusBase() : null;
+        var plusImg = plusHolder?.TryAcquire();
+        if (plusImg is null) plusHolder = null;
 
         context.Custom(new MedallionDrawOp(
             new Rect(Bounds.Size),
@@ -350,7 +457,11 @@ public sealed class MetallicMedallionControl : Control
             _lowerHoverT,
             _plusHoverT,
             _collapseHoverT,
-            (float)_clock.Elapsed.TotalSeconds));
+            (float)_clock.Elapsed.TotalSeconds,
+            medallionHolder,
+            medallionImg,
+            plusHolder,
+            plusImg));
     }
 
     private sealed class MedallionDrawOp(
@@ -364,8 +475,15 @@ public sealed class MetallicMedallionControl : Control
         float lowerHoverT,
         float plusHoverT,
         float collapseHoverT,
-        float timeSec) : ICustomDrawOperation
+        float timeSec,
+        AeroSkiaHelpers.RefCountedSkImage? medallionHolder,
+        SKImage? medallionImage,
+        AeroSkiaHelpers.RefCountedSkImage? plusHolder,
+        SKImage? plusImage) : ICustomDrawOperation
     {
+        private AeroSkiaHelpers.RefCountedSkImage? _medallionHolder = medallionHolder;
+        private AeroSkiaHelpers.RefCountedSkImage? _plusHolder = plusHolder;
+
         public Rect Bounds { get; } = bounds;
         public bool Equals(ICustomDrawOperation? other) => false;
 
@@ -398,41 +516,170 @@ public sealed class MetallicMedallionControl : Control
             return false;
         }
 
-        public void Dispose() { }
+        public void Dispose()
+        {
+            Interlocked.Exchange(ref _medallionHolder, null)?.Release();
+            Interlocked.Exchange(ref _plusHolder, null)?.Release();
+        }
 
         public void Render(ImmediateDrawingContext context)
         {
-            if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature leaseFeature)
+            var medHolder = Volatile.Read(ref _medallionHolder);
+            var acquiredMed = medHolder?.TryAcquire();
+            if (medHolder is not null && acquiredMed is null)
             {
                 return;
             }
 
-            using var lease = leaseFeature.Lease();
-            var canvas = lease.SkCanvas;
-
-            float scale = 0.86f + 0.14f * revealT;
-            canvas.Save();
-            canvas.Translate(CenterX, CenterY);
-            canvas.Scale(scale);
-            canvas.Translate(-CenterX, -CenterY);
-
-            DrawPlusButton(canvas);
-            DrawMainMedallion(canvas);
-            if (expandT > 0.05f)
+            var plHolder = Volatile.Read(ref _plusHolder);
+            var acquiredPlus = plHolder?.TryAcquire();
+            try
             {
-                DrawCollapseChevron(canvas);
-            }
+                if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature leaseFeature)
+                {
+                    return;
+                }
 
-            canvas.Restore();
+                using var lease = leaseFeature.Lease();
+                var canvas = lease.SkCanvas;
+
+                float scale = 0.86f + 0.14f * revealT;
+                canvas.Save();
+                canvas.Translate(CenterX, CenterY);
+                canvas.Scale(scale);
+                canvas.Translate(-CenterX, -CenterY);
+
+                DrawPlusButton(canvas, acquiredPlus ?? plusImage);
+                DrawMainMedallion(canvas, acquiredMed ?? medallionImage);
+                if (expandT > 0.05f)
+                {
+                    DrawCollapseChevron(canvas);
+                }
+
+                canvas.Restore();
+            }
+            finally
+            {
+                if (acquiredPlus is not null) plHolder!.Release();
+                if (acquiredMed is not null) medHolder!.Release();
+            }
         }
 
         private static readonly SKMaskFilter MainShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 18f);
         private static readonly SKMaskFilter InnerShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 9f);
         private static readonly SKMaskFilter PlusDropBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 8f);
 
-        private void DrawMainMedallion(SKCanvas canvas)
+        private void DrawMainMedallion(SKCanvas canvas, SKImage? cachedBase)
         {
             byte A(byte val) => (byte)Math.Round(val * revealT);
+
+            if (cachedBase is not null)
+            {
+                float half = MedallionRadius + MedallionPad;
+                using var basePaint = new SKPaint
+                {
+                    IsAntialias = true,
+                    FilterQuality = SKFilterQuality.Medium,
+                    Color = new SKColor(255, 255, 255, A(255))
+                };
+                canvas.DrawImage(cachedBase, new SKRect(CenterX - half, CenterY - half, CenterX + half, CenterY + half), basePaint);
+            }
+            else
+            {
+                BakeStaticMedallionPlate(canvas, CenterX, CenterY, isDark, device, revealT);
+            }
+
+            float innerR = MedallionRadius - 5f;
+            float seamY = CenterY + 37f;
+
+            // Lightweight dynamic hover washes & bouncing waiting dots only (zero blurs / sweep gradients)
+            if (upperHoverT > 0.01f || lowerHoverT > 0.01f)
+            {
+                using var innerCircle = new SKPath();
+                innerCircle.AddCircle(CenterX, CenterY, innerR);
+                canvas.Save();
+                canvas.ClipPath(innerCircle, SKClipOperation.Intersect, true);
+
+                if (upperHoverT > 0.01f)
+                {
+                    canvas.Save();
+                    canvas.ClipRect(new SKRect(CenterX - innerR, CenterY - innerR, CenterX + innerR, seamY));
+                    using var hoverGlow = SKShader.CreateRadialGradient(
+                        new SKPoint(CenterX, CenterY - 20f),
+                        innerR * 0.85f,
+                        [
+                            new SKColor(122, 203, 255, (byte)Math.Round(56 * upperHoverT * revealT)),
+                            new SKColor(148, 229, 82, (byte)Math.Round(22 * upperHoverT * revealT)),
+                            SKColors.Transparent
+                        ],
+                        [0f, 0.55f, 1f],
+                        SKShaderTileMode.Clamp);
+                    using var hoverPaint = new SKPaint { IsAntialias = true, Shader = hoverGlow };
+                    canvas.DrawCircle(CenterX, CenterY, innerR, hoverPaint);
+                    canvas.Restore();
+                }
+
+                if (lowerHoverT > 0.01f)
+                {
+                    canvas.Save();
+                    canvas.ClipRect(new SKRect(CenterX - innerR, seamY, CenterX + innerR, CenterY + innerR));
+                    using var cresHover = SKShader.CreateLinearGradient(
+                        new SKPoint(CenterX - 60f, seamY),
+                        new SKPoint(CenterX + 60f, CenterY + innerR),
+                        [
+                            new SKColor(122, 203, 255, (byte)Math.Round(56 * lowerHoverT * revealT)),
+                            new SKColor(148, 229, 82, (byte)Math.Round(68 * lowerHoverT * revealT))
+                        ],
+                        (float[]?)null,
+                        SKShaderTileMode.Clamp);
+                    using var cresPaint = new SKPaint { IsAntialias = true, Shader = cresHover };
+                    canvas.DrawRect(CenterX - innerR, seamY, innerR * 2, innerR - 37f, cresPaint);
+                    canvas.Restore();
+                }
+
+                canvas.Restore();
+            }
+
+            if (device is null)
+            {
+                // Three rhythmically bouncing aero waiting dots
+                SKColor[] dotColors =
+                [
+                    isDark ? new SKColor(125, 211, 252, A(255)) : new SKColor(14, 165, 233, A(255)),
+                    isDark ? new SKColor(94, 234, 212, A(255)) : new SKColor(45, 212, 191, A(255)),
+                    isDark ? new SKColor(190, 242, 100, A(255)) : new SKColor(132, 204, 22, A(255))
+                ];
+
+                for (int i = 0; i < 3; i++)
+                {
+                    double dotPhase = (timeSec * 1.45 - i * 0.14) % 1.0;
+                    if (dotPhase < 0) dotPhase += 1.0;
+                    float wave = dotPhase < 0.6 ? MathF.Sin((float)(dotPhase / 0.6 * Math.PI)) : 0f;
+                    float dy = -4.2f * wave;
+                    byte dotAlpha = (byte)Math.Round((0.46f + 0.54f * wave) * A(255));
+                    using var dotPaint = new SKPaint { IsAntialias = true, Color = dotColors[i].WithAlpha(dotAlpha) };
+                    canvas.DrawCircle(CenterX + (i - 1) * 14f, CenterY + 18f + dy, 3.2f, dotPaint);
+                }
+            }
+
+            // Dynamic accent underline on My Library hover
+            float labelY = seamY + 34f;
+            float ridgeW = 32f + 16f * lowerHoverT;
+            float rx = CenterX - ridgeW * 0.5f;
+            float ry = labelY + 7f;
+            using var ridgeShader = SKShader.CreateLinearGradient(
+                new SKPoint(rx, ry),
+                new SKPoint(rx + ridgeW, ry),
+                [new SKColor(56, 189, 248, A(190)), new SKColor(163, 230, 53, A(210))],
+                (float[]?)null,
+                SKShaderTileMode.Clamp);
+            using var ridgePaint = new SKPaint { IsAntialias = true, Shader = ridgeShader };
+            canvas.DrawRoundRect(new SKRoundRect(new SKRect(rx, ry, rx + ridgeW, ry + 2.5f), 1.5f, 1.5f), ridgePaint);
+        }
+
+        public static void BakeStaticMedallionPlate(SKCanvas canvas, float cx, float cy, bool isDark, WalkmanDeviceSummary? device, float alpha = 1f)
+        {
+            byte A(byte val) => (byte)Math.Round(val * alpha);
 
             // Outer ambient elevation shadow
             using (var shadow = new SKPaint
@@ -442,7 +689,7 @@ public sealed class MetallicMedallionControl : Control
                 MaskFilter = MainShadowBlur
             })
             {
-                canvas.DrawCircle(CenterX, CenterY + 10f, MedallionRadius, shadow);
+                canvas.DrawCircle(cx, cy + 10f, MedallionRadius, shadow);
             }
 
             // Lathe-turned outer brushed-metal bezel (conic sweep gradient)
@@ -467,15 +714,14 @@ public sealed class MetallicMedallionControl : Control
                   ];
 
             using (var bezelShader = SKShader.CreateSweepGradient(
-                new SKPoint(CenterX, CenterY),
+                new SKPoint(cx, cy),
                 sweepColors,
                 [0f, 0.14f, 0.33f, 0.54f, 0.76f, 0.91f, 1f]))
             using (var bezelPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = bezelShader })
             {
-                canvas.DrawCircle(CenterX, CenterY, MedallionRadius, bezelPaint);
+                canvas.DrawCircle(cx, cy, MedallionRadius, bezelPaint);
             }
 
-            // Concentric lathe micro-grooves on outer bezel
             using (var groovePaint = new SKPaint
             {
                 IsAntialias = true,
@@ -484,10 +730,9 @@ public sealed class MetallicMedallionControl : Control
                 Color = isDark ? new SKColor(255, 255, 255, A(20)) : new SKColor(255, 255, 255, A(145))
             })
             {
-                canvas.DrawCircle(CenterX, CenterY, MedallionRadius - 2.2f, groovePaint);
+                canvas.DrawCircle(cx, cy, MedallionRadius - 2.2f, groovePaint);
             }
 
-            // Bezel outer rim stroke
             using (var bezelRim = new SKPaint
             {
                 IsAntialias = true,
@@ -496,39 +741,37 @@ public sealed class MetallicMedallionControl : Control
                 Color = isDark ? new SKColor(145, 165, 190, A(90)) : new SKColor(172, 190, 210, A(190))
             })
             {
-                canvas.DrawCircle(CenterX, CenterY, MedallionRadius, bezelRim);
+                canvas.DrawCircle(cx, cy, MedallionRadius, bezelRim);
             }
 
-            // Inner Core (radius = 111px) split at seamY = CenterY + 37f
             float innerR = MedallionRadius - 5f;
-            float seamY = CenterY + 37f;
+            float seamY = cy + 37f;
 
             using var innerCircle = new SKPath();
-            innerCircle.AddCircle(CenterX, CenterY, innerR);
+            innerCircle.AddCircle(cx, cy, innerR);
 
             canvas.Save();
             canvas.ClipPath(innerCircle, SKClipOperation.Intersect, true);
 
-            // 1. UPPER DISH (~66%, Recessed/Concave metal background)
+            // 1. UPPER DISH
             canvas.Save();
-            canvas.ClipRect(new SKRect(CenterX - innerR, CenterY - innerR, CenterX + innerR, seamY));
+            canvas.ClipRect(new SKRect(cx - innerR, cy - innerR, cx + innerR, seamY));
 
             SKColor[] upperGrad = isDark
                 ? [new SKColor(33, 38, 48, A(255)), new SKColor(46, 54, 67, A(255)), new SKColor(68, 78, 95, A(255))]
                 : [new SKColor(194, 206, 220, A(255)), new SKColor(228, 235, 243, A(255)), new SKColor(252, 254, 255, A(255))];
 
             using (var dishShader = SKShader.CreateLinearGradient(
-                new SKPoint(CenterX, CenterY - innerR),
-                new SKPoint(CenterX, seamY),
+                new SKPoint(cx, cy - innerR),
+                new SKPoint(cx, seamY),
                 upperGrad,
                 [0f, 0.52f, 1f],
                 SKShaderTileMode.Clamp))
             using (var dishPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = dishShader })
             {
-                canvas.DrawRect(CenterX - innerR, CenterY - innerR, innerR * 2, innerR + 37f, dishPaint);
+                canvas.DrawRect(cx - innerR, cy - innerR, innerR * 2, innerR + 37f, dishPaint);
             }
 
-            // Recessed dish top shadow lip
             using (var innerShadow = new SKPaint
             {
                 IsAntialias = true,
@@ -538,118 +781,69 @@ public sealed class MetallicMedallionControl : Control
                 MaskFilter = InnerShadowBlur
             })
             {
-                canvas.DrawCircle(CenterX, CenterY + 6f, innerR + 4f, innerShadow);
+                canvas.DrawCircle(cx, cy + 6f, innerR + 4f, innerShadow);
             }
-
-            if (upperHoverT > 0.01f)
-            {
-                using var hoverGlow = SKShader.CreateRadialGradient(
-                    new SKPoint(CenterX, CenterY - 20f),
-                    innerR * 0.85f,
-                    [
-                        new SKColor(122, 203, 255, (byte)Math.Round(56 * upperHoverT * revealT)),
-                        new SKColor(148, 229, 82, (byte)Math.Round(22 * upperHoverT * revealT)),
-                        SKColors.Transparent
-                    ],
-                    [0f, 0.55f, 1f],
-                    SKShaderTileMode.Clamp);
-                using var hoverPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = hoverGlow };
-                canvas.DrawCircle(CenterX, CenterY, innerR, hoverPaint);
-            }
-
             canvas.Restore();
 
-            // 2. LOWER CRESCENT (~34%, Raised/Convex metal background)
+            // 2. LOWER CRESCENT
             canvas.Save();
-            canvas.ClipRect(new SKRect(CenterX - innerR, seamY, CenterX + innerR, CenterY + innerR));
+            canvas.ClipRect(new SKRect(cx - innerR, seamY, cx + innerR, cy + innerR));
 
             SKColor[] lowerGrad = isDark
                 ? [new SKColor(72, 82, 100, A(255)), new SKColor(48, 56, 70, A(255)), new SKColor(34, 40, 50, A(255))]
                 : [new SKColor(254, 255, 255, A(255)), new SKColor(226, 234, 242, A(255)), new SKColor(196, 208, 222, A(255))];
 
             using (var lowerShader = SKShader.CreateLinearGradient(
-                new SKPoint(CenterX, seamY),
-                new SKPoint(CenterX, CenterY + innerR),
+                new SKPoint(cx, seamY),
+                new SKPoint(cx, cy + innerR),
                 lowerGrad,
                 [0f, 0.52f, 1f],
                 SKShaderTileMode.Clamp))
             using (var lowerPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = lowerShader })
             {
-                canvas.DrawRect(CenterX - innerR, seamY, innerR * 2, innerR - 37f, lowerPaint);
+                canvas.DrawRect(cx - innerR, seamY, innerR * 2, innerR - 37f, lowerPaint);
             }
 
-            if (lowerHoverT > 0.01f)
-            {
-                using var cresHover = SKShader.CreateLinearGradient(
-                    new SKPoint(CenterX - 60f, seamY),
-                    new SKPoint(CenterX + 60f, CenterY + innerR),
-                    [
-                        new SKColor(122, 203, 255, (byte)Math.Round(56 * lowerHoverT * revealT)),
-                        new SKColor(148, 229, 82, (byte)Math.Round(68 * lowerHoverT * revealT))
-                    ],
-                    (float[]?)null,
-                    SKShaderTileMode.Clamp);
-                using var cresPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = cresHover };
-                canvas.DrawRect(CenterX - innerR, seamY, innerR * 2, innerR - 37f, cresPaint);
-            }
-
-            // Convex top specular rim just beneath seam
             using (var topRim = new SKPaint { Color = isDark ? new SKColor(220, 238, 255, A(56)) : new SKColor(255, 255, 255, A(245)), StrokeWidth = 2f })
             {
-                canvas.DrawLine(CenterX - innerR, seamY + 1.5f, CenterX + innerR, seamY + 1.5f, topRim);
+                canvas.DrawLine(cx - innerR, seamY + 1.5f, cx + innerR, seamY + 1.5f, topRim);
             }
-
             canvas.Restore();
 
-            // 3. Fixed calm satin studio specular highlight OVER metal surfaces, UNDER text & dots (matching mockup)
-            float sx = CenterX - innerR * 0.44f;
-            float sy = CenterY - innerR * 0.50f;
+            // 3. Calm satin studio specular highlight
+            float sx = cx - innerR * 0.44f;
+            float sy = cy - innerR * 0.50f;
             using (var cursorSheen = SKShader.CreateRadialGradient(
                 new SKPoint(sx, sy),
                 innerR * 1.48f,
                 [
-                    new SKColor(255, 255, 255, (byte)((isDark ? 34 : 112) * revealT)),
-                    new SKColor(196, 224, 248, (byte)((isDark ? 12 : 30) * revealT)),
-                    new SKColor(140, 195, 232, (byte)((isDark ? 4 : 10) * revealT)),
+                    new SKColor(255, 255, 255, (byte)((isDark ? 34 : 112) * alpha)),
+                    new SKColor(196, 224, 248, (byte)((isDark ? 12 : 30) * alpha)),
+                    new SKColor(140, 195, 232, (byte)((isDark ? 4 : 10) * alpha)),
                     SKColors.Transparent
                 ],
                 [0f, 0.30f, 0.56f, 0.82f],
                 SKShaderTileMode.Clamp))
             using (var sheenPaint = new SKPaint { IsAntialias = true, IsDither = true, Shader = cursorSheen })
             {
-                canvas.DrawCircle(CenterX, CenterY, innerR, sheenPaint);
+                canvas.DrawCircle(cx, cy, innerR, sheenPaint);
             }
 
-            // 4. Physical machined horizontal seam channel
+            // 4. Machined horizontal seam channel
             using (var seamShader = SKShader.CreateLinearGradient(
-                new SKPoint(CenterX - innerR, seamY),
-                new SKPoint(CenterX + innerR, seamY),
+                new SKPoint(cx - innerR, seamY),
+                new SKPoint(cx + innerR, seamY),
                 [new SKColor(70, 88, 110, A(70)), new SKColor(38, 52, 70, A(155)), new SKColor(70, 88, 110, A(70))],
                 [0f, 0.5f, 1f],
                 SKShaderTileMode.Clamp))
             using (var seamPaint = new SKPaint { Shader = seamShader, StrokeWidth = 2.4f })
             {
-                canvas.DrawLine(CenterX - innerR, seamY, CenterX + innerR, seamY, seamPaint);
+                canvas.DrawLine(cx - innerR, seamY, cx + innerR, seamY, seamPaint);
             }
 
-            // 5. Crisp Foreground Content (never obscured by specular sheen)
+            // 5. Static Foreground Text & Device Capacity Bar
             canvas.Save();
-            canvas.ClipRect(new SKRect(CenterX - innerR, CenterY - innerR, CenterX + innerR, seamY));
-            DrawUpperDishContent(canvas, revealT);
-            canvas.Restore();
-
-            canvas.Save();
-            canvas.ClipRect(new SKRect(CenterX - innerR, seamY, CenterX + innerR, CenterY + innerR));
-            DrawLowerCrescentContent(canvas, seamY, revealT);
-            canvas.Restore();
-
-            canvas.Restore();
-        }
-
-        private void DrawUpperDishContent(SKCanvas canvas, float alpha)
-        {
-            byte A(byte val) => (byte)Math.Round(val * alpha);
-
+            canvas.ClipRect(new SKRect(cx - innerR, cy - innerR, cx + innerR, seamY));
             if (device is not null)
             {
                 using var badgePaint = new SKPaint
@@ -660,7 +854,7 @@ public sealed class MetallicMedallionControl : Control
                     Typeface = AeroSkiaHelpers.InterBold,
                     Color = isDark ? new SKColor(125, 211, 252, A(255)) : new SKColor(3, 105, 161, A(255))
                 };
-                canvas.DrawText("PLAYER READY", CenterX, CenterY - 34f, badgePaint);
+                canvas.DrawText("PLAYER READY", cx, cy - 34f, badgePaint);
 
                 using var modelPaint = new SKPaint
                 {
@@ -670,7 +864,7 @@ public sealed class MetallicMedallionControl : Control
                     Typeface = AeroSkiaHelpers.InterBold,
                     Color = isDark ? new SKColor(248, 250, 252, A(255)) : new SKColor(15, 23, 42, A(255))
                 };
-                canvas.DrawText(device.Model, CenterX, CenterY - 8f, modelPaint);
+                canvas.DrawText(device.Model, cx, cy - 8f, modelPaint);
 
                 using var statPaint = new SKPaint
                 {
@@ -682,15 +876,14 @@ public sealed class MetallicMedallionControl : Control
                 };
                 canvas.DrawText(
                     string.Create(CultureInfo.InvariantCulture, $"{device.BatteryPct}% · {device.StorageFreeGb:F1} GB free"),
-                    CenterX,
-                    CenterY + 11f,
+                    cx,
+                    cy + 11f,
                     statPaint);
 
-                // Recessed capacity bar
                 float barW = 96f;
                 float barH = 4.5f;
-                float bx = CenterX - barW * 0.5f;
-                float by = CenterY + 21f;
+                float bx = cx - barW * 0.5f;
+                float by = cy + 21f;
                 using var trackPaint = new SKPaint { IsAntialias = true, Color = isDark ? new SKColor(0, 0, 0, A(110)) : new SKColor(15, 23, 42, A(34)) };
                 canvas.DrawRoundRect(new SKRoundRect(new SKRect(bx, by, bx + barW, by + barH), 2.5f, 2.5f), trackPaint);
 
@@ -714,62 +907,74 @@ public sealed class MetallicMedallionControl : Control
                     Typeface = AeroSkiaHelpers.InterBold,
                     Color = isDark ? new SKColor(241, 245, 249, A(255)) : new SKColor(30, 41, 59, A(255))
                 };
-                canvas.DrawText("Please connect your", CenterX, CenterY - 22f, textPaint);
-                canvas.DrawText("player", CenterX, CenterY - 3f, textPaint);
-
-                // Three rhythmically bouncing aero waiting dots
-                SKColor[] dotColors =
-                [
-                    isDark ? new SKColor(125, 211, 252, A(255)) : new SKColor(14, 165, 233, A(255)),
-                    isDark ? new SKColor(94, 234, 212, A(255)) : new SKColor(45, 212, 191, A(255)),
-                    isDark ? new SKColor(190, 242, 100, A(255)) : new SKColor(132, 204, 22, A(255))
-                ];
-
-                for (int i = 0; i < 3; i++)
-                {
-                    double phase = (timeSec * 1.45 - i * 0.14) % 1.0;
-                    if (phase < 0) phase += 1.0;
-                    float wave = phase < 0.6 ? MathF.Sin((float)(phase / 0.6 * Math.PI)) : 0f;
-                    float dy = -4.2f * wave;
-                    byte dotAlpha = (byte)Math.Round((0.46f + 0.54f * wave) * A(255));
-                    using var dotPaint = new SKPaint { IsAntialias = true, Color = dotColors[i].WithAlpha(dotAlpha) };
-                    canvas.DrawCircle(CenterX + (i - 1) * 14f, CenterY + 18f + dy, 3.2f, dotPaint);
-                }
+                canvas.DrawText("Please connect your", cx, cy - 22f, textPaint);
+                canvas.DrawText("player", cx, cy - 3f, textPaint);
             }
-        }
+            canvas.Restore();
 
-        private void DrawLowerCrescentContent(SKCanvas canvas, float seamY, float alpha)
-        {
-            byte A(byte val) => (byte)Math.Round(val * alpha);
-            float labelY = seamY + 34f;
-
-            SKColor baseText = isDark ? new SKColor(241, 245, 249, A(255)) : new SKColor(30, 41, 59, A(255));
-            SKColor hoverText = isDark ? new SKColor(255, 255, 255, A(255)) : new SKColor(2, 6, 23, A(255));
-
-            using var labelPaint = new SKPaint
+            canvas.Save();
+            canvas.ClipRect(new SKRect(cx - innerR, seamY, cx + innerR, cy + innerR));
+            using (var labelPaint = new SKPaint
             {
                 IsAntialias = true,
                 TextSize = 13.5f,
                 TextAlign = SKTextAlign.Center,
                 Typeface = AeroSkiaHelpers.InterBold,
-                Color = AeroSkiaHelpers.Mix(baseText, hoverText, lowerHoverT)
-            };
-            canvas.DrawText("My Library", CenterX, labelY, labelPaint);
+                Color = isDark ? new SKColor(241, 245, 249, A(255)) : new SKColor(30, 41, 59, A(255))
+            })
+            {
+                canvas.DrawText("My Library", cx, seamY + 34f, labelPaint);
+            }
+            canvas.Restore();
 
-            float ridgeW = 32f + 16f * lowerHoverT;
-            float rx = CenterX - ridgeW * 0.5f;
-            float ry = labelY + 7f;
-            using var ridgeShader = SKShader.CreateLinearGradient(
-                new SKPoint(rx, ry),
-                new SKPoint(rx + ridgeW, ry),
-                [new SKColor(56, 189, 248, A(190)), new SKColor(163, 230, 53, A(210))],
-                (float[]?)null,
-                SKShaderTileMode.Clamp);
-            using var ridgePaint = new SKPaint { IsAntialias = true, Shader = ridgeShader };
-            canvas.DrawRoundRect(new SKRoundRect(new SKRect(rx, ry, rx + ridgeW, ry + 2.5f), 1.5f, 1.5f), ridgePaint);
+            canvas.Restore();
         }
 
-        private void DrawPlusButton(SKCanvas canvas)
+        public static void BakeStaticPlusButton(SKCanvas canvas, float cx, float cy, bool isDark)
+        {
+            using (var drop = new SKPaint
+            {
+                IsAntialias = true,
+                Color = isDark ? new SKColor(0, 0, 0, 120) : new SKColor(42, 66, 94, 52),
+                MaskFilter = PlusDropBlur
+            })
+            {
+                canvas.DrawCircle(cx, cy + 4f, PlusRadius, drop);
+            }
+
+            SKColor[] sweepColors = isDark
+                ? [
+                    new SKColor(66, 74, 90),
+                    new SKColor(42, 48, 58),
+                    new SKColor(78, 88, 106),
+                    new SKColor(38, 44, 54),
+                    new SKColor(66, 74, 90)
+                  ]
+                : [
+                    new SKColor(238, 244, 250),
+                    new SKColor(210, 222, 234),
+                    new SKColor(252, 254, 255),
+                    new SKColor(206, 218, 230),
+                    new SKColor(238, 244, 250)
+                  ];
+
+            using (var sweep = SKShader.CreateSweepGradient(new SKPoint(cx, cy), sweepColors, [0f, 0.25f, 0.5f, 0.75f, 1f]))
+            using (var fill = new SKPaint { IsAntialias = true, IsDither = true, Shader = sweep })
+            {
+                canvas.DrawCircle(cx, cy, PlusRadius, fill);
+            }
+
+            using var rim = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1.15f,
+                Color = isDark ? new SKColor(150, 170, 195, 110) : new SKColor(175, 192, 212, 210)
+            };
+            canvas.DrawCircle(cx, cy, PlusRadius, rim);
+        }
+
+        private void DrawPlusButton(SKCanvas canvas, SKImage? cachedPlus)
         {
             float vis = Math.Clamp((1f - expandT * 1.4f) * revealT, 0f, 1f);
             if (vis <= 0.01f)
@@ -781,37 +986,16 @@ public sealed class MetallicMedallionControl : Control
             float r = PlusRadius * (1f + 0.08f * plusHoverT);
             byte A(byte val) => (byte)Math.Round(val * vis);
 
-            using (var drop = new SKPaint
+            if (cachedPlus is not null)
             {
-                IsAntialias = true,
-                Color = isDark ? new SKColor(0, 0, 0, A(120)) : new SKColor(42, 66, 94, A(52)),
-                MaskFilter = PlusDropBlur
-            })
-            {
-                canvas.DrawCircle(CenterX, slideY + 4f, r, drop);
-            }
-
-            // Closed 5-stop sweep gradient so 0 deg -> 360 deg wraps without a radial seam
-            SKColor[] sweepColors = isDark
-                ? [
-                    new SKColor(66, 74, 90, A(255)),
-                    new SKColor(42, 48, 58, A(255)),
-                    new SKColor(78, 88, 106, A(255)),
-                    new SKColor(38, 44, 54, A(255)),
-                    new SKColor(66, 74, 90, A(255))
-                  ]
-                : [
-                    new SKColor(238, 244, 250, A(255)),
-                    new SKColor(210, 222, 234, A(255)),
-                    new SKColor(252, 254, 255, A(255)),
-                    new SKColor(206, 218, 230, A(255)),
-                    new SKColor(238, 244, 250, A(255))
-                  ];
-
-            using (var sweep = SKShader.CreateSweepGradient(new SKPoint(CenterX, slideY), sweepColors, [0f, 0.25f, 0.5f, 0.75f, 1f]))
-            using (var fill = new SKPaint { IsAntialias = true, IsDither = true, Shader = sweep })
-            {
-                canvas.DrawCircle(CenterX, slideY, r, fill);
+                float half = (PlusRadius + PlusPad) * (1f + 0.08f * plusHoverT);
+                using var basePaint = new SKPaint
+                {
+                    IsAntialias = true,
+                    FilterQuality = SKFilterQuality.Medium,
+                    Color = new SKColor(255, 255, 255, A(255))
+                };
+                canvas.DrawImage(cachedPlus, new SKRect(CenterX - half, slideY - half, CenterX + half, slideY + half), basePaint);
             }
 
             if (plusHoverT > 0.01f)
@@ -826,15 +1010,6 @@ public sealed class MetallicMedallionControl : Control
                 using var tintPaint = new SKPaint { IsAntialias = true, Shader = hoverTint };
                 canvas.DrawCircle(CenterX, slideY, r - 1.5f, tintPaint);
             }
-
-            using var rim = new SKPaint
-            {
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1.15f,
-                Color = isDark ? new SKColor(150, 170, 195, A(110)) : new SKColor(175, 192, 212, A(210))
-            };
-            canvas.DrawCircle(CenterX, slideY, r, rim);
 
             using var glyph = new SKPaint
             {

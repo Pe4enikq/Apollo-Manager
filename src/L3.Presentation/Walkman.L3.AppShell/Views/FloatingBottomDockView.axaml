@@ -18,7 +18,10 @@
                             IsDark="{Binding IsDark}"
                             CornerRadiusValue="18"
                             VerticalAlignment="Bottom"
-                            MinHeight="78">
+                            Height="78"
+                            MaxHeight="78"
+                            ClipToBounds="True"
+                            ToolTip.Tip="{Binding TransferJobErrorTooltip}">
       <Grid RowDefinitions="Auto,8,Auto" Margin="16,11">
         <Grid Grid.Row="0" ColumnDefinitions="Auto,10,*,12,Auto,10,Auto">
           <Border Grid.Column="0"
@@ -36,6 +39,12 @@
                                Height="14"
                                StrokeThickness="2"
                                Foreground="{DynamicResource AeroLimeInkBrush}" />
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}"
+                               IsVisible="{Binding TransferJob.IsError}"
+                               Width="12"
+                               Height="12"
+                               StrokeThickness="2.2"
+                               Foreground="{DynamicResource AeroDangerInkBrush}" />
               <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Disc}"
                                Classes.spin-active="{Binding IsTransferRunning}"
                                IsVisible="{Binding IsTransferRunning}"
@@ -50,10 +59,14 @@
             <TextBlock Text="{Binding TransferJob.CurrentFileName}"
                        FontSize="14"
                        FontWeight="SemiBold"
+                       MaxLines="1"
+                       TextWrapping="NoWrap"
                        TextTrimming="CharacterEllipsis" />
             <TextBlock Text="{Binding TransferJobStageCodec}"
                        FontSize="12.5"
                        Foreground="{DynamicResource AeroMutedBrush}"
+                       MaxLines="1"
+                       TextWrapping="NoWrap"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
 

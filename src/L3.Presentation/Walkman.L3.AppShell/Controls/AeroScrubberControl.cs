@@ -142,6 +142,9 @@ public sealed class AeroScrubberControl : Control
 
     private sealed class ScrubberDrawOp(Rect bounds, float ratio, bool isDark, bool emphasized) : ICustomDrawOperation
     {
+        private static readonly SKMaskFilter ThumbBlurNormal = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f);
+        private static readonly SKMaskFilter ThumbBlurEmphasized = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5.5f);
+
         public Rect Bounds { get; } = bounds;
         public bool Equals(ICustomDrawOperation? other) => false;
         public bool HitTest(Point p) => Bounds.Contains(p);
@@ -190,14 +193,13 @@ public sealed class AeroScrubberControl : Control
                 canvas.DrawRoundRect(new SKRoundRect(new SKRect(pad, trackY, thumbX, trackY + trackH), 2.5f, 2.5f), fillPaint);
             }
 
-            // Crisp sky-blue thumb glow & sphere
+            // Crisp sky-blue thumb glow & sphere (cached static mask filters)
             float thumbR = emphasized ? 6.2f : 5.2f;
-            using (var thumbBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, emphasized ? 5.5f : 4f))
             using (var thumbGlow = new SKPaint
             {
                 IsAntialias = true,
                 Color = new SKColor(56, 189, 248, (byte)(emphasized ? 175 : 120)),
-                MaskFilter = thumbBlur
+                MaskFilter = emphasized ? ThumbBlurEmphasized : ThumbBlurNormal
             })
             {
                 canvas.DrawCircle(thumbX, cy, thumbR + 1f, thumbGlow);

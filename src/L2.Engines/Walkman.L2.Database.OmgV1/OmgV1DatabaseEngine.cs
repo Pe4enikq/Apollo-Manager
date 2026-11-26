@@ -894,8 +894,23 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
         IReadOnlyList<string>? orderedGroupNames = null)
     {
         var deletedSet = deletedGroupNames is { Count: > 0 }
-            ? new HashSet<string>(deletedGroupNames, StringComparer.OrdinalIgnoreCase)
+            ? new HashSet<string>(deletedGroupNames.Select(OmgTableFraming.NormalizeGroupKey), StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        Dictionary<string, string>? normalizedRenames = null;
+        if (renamedGroups is { Count: > 0 })
+        {
+            normalizedRenames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (k, v) in renamedGroups)
+            {
+                string nk = OmgTableFraming.NormalizeGroupKey(k);
+                string nv = OmgTableFraming.NormalizeGroupKey(v);
+                if (!string.IsNullOrEmpty(nk) && !string.IsNullOrEmpty(nv))
+                {
+                    normalizedRenames[nk] = nv;
+                }
+            }
+        }
 
         if (updatedGroups.Count > 0)
         {
@@ -903,32 +918,42 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
             var mergedByTitle = new Dictionary<string, (TrackGroupDto Group, List<int> TrackIds)>(StringComparer.OrdinalIgnoreCase);
             foreach (var g in existingGroups)
             {
-                if (deletedSet.Contains(g.Title))
+                string normTitle = OmgTableFraming.NormalizeGroupKey(g.Title);
+                if (deletedSet.Contains(normTitle))
                 {
                     continue;
                 }
 
-                string effectiveTitle = renamedGroups is not null && renamedGroups.TryGetValue(g.Title, out var renamed)
+                string effectiveTitle = normalizedRenames is not null && normalizedRenames.TryGetValue(normTitle, out var renamed)
                     ? renamed
-                    : g.Title;
+                    : normTitle;
                 var remainingIds = g.TrackIds.Where(id => !reassignedTrackIds.Contains(id)).ToList();
-                mergedByTitle[effectiveTitle] = (g with { Title = effectiveTitle }, remainingIds);
+                if (mergedByTitle.TryGetValue(effectiveTitle, out var existingEntry))
+                {
+                    existingEntry.TrackIds.AddRange(remainingIds);
+                }
+                else
+                {
+                    mergedByTitle[effectiveTitle] = (g with { Title = effectiveTitle }, remainingIds);
+                }
             }
 
             foreach (var u in updatedGroups)
             {
-                if (!deletedSet.Contains(u.Title))
+                string normU = OmgTableFraming.NormalizeGroupKey(u.Title);
+                if (!deletedSet.Contains(normU))
                 {
-                    mergedByTitle[u.Title] = (u, new List<int>(u.TrackIds));
+                    mergedByTitle[normU] = (u with { Title = normU }, new List<int>(u.TrackIds));
                 }
             }
 
             var activeSet = allActiveTracks.ToDictionary(t => t.TrackId);
+            var globalAssigned = new HashSet<int>();
             var finalized = new List<TrackGroupDto>(mergedByTitle.Count);
             int nextId = 1;
             foreach (var (_, (grp, tids)) in mergedByTitle)
             {
-                var validTids = tids.Where(activeSet.ContainsKey).Distinct().ToArray();
+                var validTids = tids.Where(id => activeSet.ContainsKey(id) && globalAssigned.Add(id)).ToArray();
                 if (validTids.Length == 0)
                 {
                     continue;
@@ -943,70 +968,107 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
 
         var trackById = allActiveTracks.ToDictionary(t => t.TrackId);
         var assignedTracks = new HashSet<int>();
-        var result = new List<TrackGroupDto>();
-        int groupIdCounter = 1;
+        var resultByTitle = new Dictionary<string, (string Title, string Artist, string Genre, List<int> Members)>(StringComparer.OrdinalIgnoreCase);
+        var insertionOrder = new List<string>();
 
-        // Preserve existing group ordering and filter out deleted tracks.
+        // Preserve existing group ordering, merge any duplicate normalized titles, and filter out deleted tracks.
         foreach (var g in existingGroups)
         {
-            if (deletedSet.Contains(g.Title))
+            string normTitle = OmgTableFraming.NormalizeGroupKey(g.Title);
+            if (string.IsNullOrEmpty(normTitle) || deletedSet.Contains(normTitle))
             {
                 continue;
             }
 
-            string effectiveTitle = renamedGroups is not null && renamedGroups.TryGetValue(g.Title, out var renamed)
+            string effectiveTitle = normalizedRenames is not null && normalizedRenames.TryGetValue(normTitle, out var renamed)
                 ? renamed
-                : g.Title;
+                : normTitle;
 
-            var members = g.TrackIds
-                .Where(id => trackById.TryGetValue(id, out var t) &&
-                             (string.IsNullOrWhiteSpace(t.GroupName) ||
-                              string.Equals(t.GroupName, g.Title, StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(t.GroupName, effectiveTitle, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-            foreach (var newTrack in allActiveTracks)
+            if (!resultByTitle.TryGetValue(effectiveTitle, out var bucket))
             {
-                if (!members.Contains(newTrack.TrackId) &&
-                    (string.Equals(newTrack.GroupName, g.Title, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(newTrack.GroupName, effectiveTitle, StringComparison.OrdinalIgnoreCase)))
+                bucket = (effectiveTitle, OmgTableFraming.NormalizeGroupKey(g.Artist), OmgTableFraming.NormalizeGroupKey(g.Genre), new List<int>());
+                resultByTitle[effectiveTitle] = bucket;
+                insertionOrder.Add(effectiveTitle);
+            }
+
+            foreach (int id in g.TrackIds)
+            {
+                if (!trackById.TryGetValue(id, out var t))
                 {
-                    if (newTrack.TargetPositionIndex.HasValue)
+                    continue;
+                }
+
+                string trackGrp = OmgTableFraming.NormalizeGroupKey(t.GroupName);
+                bool belongsHere = string.IsNullOrEmpty(trackGrp) ||
+                                   string.Equals(trackGrp, normTitle, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(trackGrp, effectiveTitle, StringComparison.OrdinalIgnoreCase);
+                if (belongsHere && assignedTracks.Add(id))
+                {
+                    bucket.Members.Add(id);
+                }
+            }
+        }
+
+        // Attach newly upserted/unassigned tracks whose GroupName (or Album fallback) matches an existing group.
+        foreach (var track in allActiveTracks)
+        {
+            if (assignedTracks.Contains(track.TrackId))
+            {
+                continue;
+            }
+
+            string rawGrp = OmgTableFraming.NormalizeGroupKey(track.GroupName);
+            string normAlbum = OmgTableFraming.NormalizeGroupKey(track.Album);
+            string candidate = !string.IsNullOrEmpty(rawGrp) ? rawGrp : normAlbum;
+            if (!string.IsNullOrEmpty(candidate) && normalizedRenames is not null && normalizedRenames.TryGetValue(candidate, out var renamedCand))
+            {
+                candidate = renamedCand;
+            }
+
+            if (!string.IsNullOrEmpty(candidate) && resultByTitle.TryGetValue(candidate, out var existingBucket))
+            {
+                if (assignedTracks.Add(track.TrackId))
+                {
+                    if (track.TargetPositionIndex.HasValue)
                     {
-                        int insertIdx = Math.Clamp(newTrack.TargetPositionIndex.Value, 0, members.Count);
-                        members.Insert(insertIdx, newTrack.TrackId);
+                        int insertIdx = Math.Clamp(track.TargetPositionIndex.Value, 0, existingBucket.Members.Count);
+                        existingBucket.Members.Insert(insertIdx, track.TrackId);
                     }
                     else
                     {
-                        members.Add(newTrack.TrackId);
+                        existingBucket.Members.Add(track.TrackId);
                     }
                 }
             }
+        }
 
-            if (members.Count == 0)
+        var result = new List<TrackGroupDto>();
+        int groupIdCounter = 1;
+        foreach (string titleKey in insertionOrder)
+        {
+            var bucket = resultByTitle[titleKey];
+            if (bucket.Members.Count == 0)
             {
                 continue;
             }
 
-            foreach (int id in members)
-            {
-                assignedTracks.Add(id);
-            }
-
-            uint dur = (uint)members.Sum(id => (long)trackById[id].DurationMs);
-            result.Add(new TrackGroupDto(groupIdCounter++, effectiveTitle, g.Artist, g.Genre, dur, members));
+            uint dur = (uint)bucket.Members.Sum(id => (long)trackById[id].DurationMs);
+            result.Add(new TrackGroupDto(groupIdCounter++, bucket.Title, bucket.Artist, bucket.Genre, dur, bucket.Members));
         }
 
-        // Group any remaining unassigned tracks by GroupName or Album.
+        // Group any remaining unassigned tracks by normalized GroupName or Album.
         var unassigned = allActiveTracks.Where(t => !assignedTracks.Contains(t.TrackId)).ToList();
         foreach (var bucket in unassigned.GroupBy(
             t =>
             {
-                string raw = !string.IsNullOrWhiteSpace(t.GroupName) ? t.GroupName! : (string.IsNullOrWhiteSpace(t.Album) ? "Unknown Album" : t.Album);
+                string rawGrp = OmgTableFraming.NormalizeGroupKey(t.GroupName);
+                string rawAlb = OmgTableFraming.NormalizeGroupKey(t.Album);
+                string raw = !string.IsNullOrEmpty(rawGrp) ? rawGrp : (string.IsNullOrEmpty(rawAlb) ? "Unknown Album" : rawAlb);
                 if (deletedSet.Contains(raw))
                 {
                     return "Unassigned";
                 }
-                return renamedGroups is not null && renamedGroups.TryGetValue(raw, out var renamed) ? renamed : raw;
+                return normalizedRenames is not null && normalizedRenames.TryGetValue(raw, out var renamed) ? renamed : raw;
             },
             StringComparer.OrdinalIgnoreCase))
         {
@@ -1016,7 +1078,11 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
                 .Select(t => t.TrackId)
                 .ToArray();
             uint dur = (uint)bucket.Sum(t => (long)t.DurationMs);
-            result.Add(new TrackGroupDto(groupIdCounter++, bucket.Key, string.Empty, string.Empty, dur, orderedBucket));
+            string[] distinctArtists = bucket.Select(t => OmgTableFraming.NormalizeGroupKey(t.Artist)).Where(a => !string.IsNullOrEmpty(a)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            string[] distinctGenres = bucket.Select(t => OmgTableFraming.NormalizeGroupKey(t.Genre)).Where(g => !string.IsNullOrEmpty(g)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            string grpArtist = distinctArtists.Length == 1 ? distinctArtists[0] : string.Empty;
+            string grpGenre = distinctGenres.Length == 1 ? distinctGenres[0] : string.Empty;
+            result.Add(new TrackGroupDto(groupIdCounter++, bucket.Key, grpArtist, grpGenre, dur, orderedBucket));
         }
 
         return ApplyExplicitGroupOrder(result, orderedGroupNames);
@@ -1186,6 +1252,16 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
         BinaryPrimitives.WriteUInt16BigEndian(slot34.Slice(14, 2), OmgTableFraming.SubElementSize);
         OmgTableFraming.WriteUtf16BeSubElement(slot34.Slice(16), "TIT2", string.Empty);
 
+        // Slot 45 (index 44 -> 0x2D Artist/Album hierarchy on 45-slot NW-E500/JSymphonic databases)
+        if (slotCount >= 45)
+        {
+            Span<byte> slot45 = span.Slice(baseOffset + 44 * GinfSimpleElementSize, GinfSimpleElementSize);
+            BinaryPrimitives.WriteUInt32BigEndian(slot45.Slice(8, 4), totalDurationMs);
+            BinaryPrimitives.WriteUInt16BigEndian(slot45.Slice(12, 2), 1);
+            BinaryPrimitives.WriteUInt16BigEndian(slot45.Slice(14, 2), OmgTableFraming.SubElementSize);
+            OmgTableFraming.WriteUtf16BeSubElement(slot45.Slice(16), "TIT2", "STD_TPE1");
+        }
+
         return data;
     }
 
@@ -1196,7 +1272,11 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
         const ushort elemSize2D = 0x0110;
         const int DefaultGplbAllocatedLength = 0x4010;
         var artistGroups = activeTracks
-            .GroupBy(t => string.IsNullOrWhiteSpace(t.Artist) ? "Unknown Artist" : t.Artist, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(t =>
+            {
+                string a = OmgTableFraming.NormalizeGroupKey(t.Artist);
+                return string.IsNullOrEmpty(a) ? "Unknown Artist" : a;
+            }, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -1213,7 +1293,11 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
             ginfRecords.Add((artist.Key, artistDur));
 
             var albums = artist
-                .GroupBy(t => string.IsNullOrWhiteSpace(t.Album) ? "Unknown Album" : t.Album, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(t =>
+                {
+                    string alb = OmgTableFraming.NormalizeGroupKey(t.Album);
+                    return string.IsNullOrEmpty(alb) ? "Unknown Album" : alb;
+                }, StringComparer.OrdinalIgnoreCase)
                 .OrderBy(a => a.Key, StringComparer.OrdinalIgnoreCase);
 
             foreach (var album in albums)
@@ -1269,9 +1353,10 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
         {
             Span<byte> el = gSpan.Slice(0x30 + i * elemSize2D, elemSize2D);
             BinaryPrimitives.WriteUInt32BigEndian(el.Slice(8, 4), ginfRecords[i].DurationMs);
-            BinaryPrimitives.WriteUInt16BigEndian(el.Slice(12, 2), 1);
+            BinaryPrimitives.WriteUInt16BigEndian(el.Slice(12, 2), 2);
             BinaryPrimitives.WriteUInt16BigEndian(el.Slice(14, 2), OmgTableFraming.SubElementSize);
             OmgTableFraming.WriteUtf16BeSubElement(el.Slice(16), "TIT2", ginfRecords[i].Title);
+            OmgTableFraming.WriteUtf16BeSubElement(el.Slice(16 + 0x80), "XSOT", ginfRecords[i].Title);
         }
 
         return (treeBytes, ginfBytes);
@@ -1339,7 +1424,7 @@ public sealed class OmgV1DatabaseEngine : IDatabaseEngine
         var grouped = tracks
             .GroupBy(t =>
             {
-                string key = keySelector(t);
+                string key = OmgTableFraming.NormalizeGroupKey(keySelector(t));
                 return string.IsNullOrEmpty(key) ? fallbackLabel : key;
             }, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)

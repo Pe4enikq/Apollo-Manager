@@ -5,6 +5,8 @@ using Walkman.Contracts.Plugins;
 using Walkman.L1.Orchestrator.Messaging;
 using Walkman.L1.Orchestrator.Plugins;
 using Walkman.L3.AppShell.Core;
+using Walkman.L3.AppShell.Services;
+using Walkman.L3.AppShell.ViewModels;
 
 namespace Walkman.M0.Tests;
 
@@ -669,6 +671,145 @@ public sealed class MilestoneM4NwmAndUiLogicTests
         Assert.False(vm.IsFallbackDiscSpinning);
         vm.ReducedBlur = true;
         Assert.False(vm.IsFallbackDiscSpinning);
+    }
+
+    [Fact]
+    public void Ui17_Ui18_Ui20_OnboardingDeckPersistenceTallyLinkAndSectorLabelCacheWork()
+    {
+        // UI-17: Data-driven OnboardingCardDeck & JSON round-trip
+        Assert.Equal(5, OnboardingCardDeck.DefaultCards.Count);
+        string json = OnboardingCardDeck.ToJson(OnboardingCardDeck.DefaultCards);
+        var roundTripped = OnboardingCardDeck.LoadFromJson(json);
+        Assert.Equal(5, roundTripped.Count);
+        Assert.Equal("USB Connect & Support Tiers", roundTripped[0].Title);
+        Assert.Equal(5, OnboardingCardDeck.LoadFromJson("{ broken-json").Count);
+
+        // UI-17: First-run auto-show, "Don't show again" persistence, and re-open command
+        string tempDir = Path.Combine(Path.GetTempPath(), $"ApolloOnboardingTest_{Guid.NewGuid():N}");
+        try
+        {
+            var initialSettings = AppSettingsStore.Load(tempDir);
+            Assert.False(initialSettings.HasCompletedOnboarding);
+
+            var firstRunVm = new Walkman.L3.AppShell.ViewModels.MainWindowViewModel(
+                new Walkman.L3.AppShell.Services.WalkmanBackendService(),
+                new Walkman.L3.AppShell.Services.AudioPlaybackService(),
+                autostart: false,
+                suppressSettingsSave: false,
+                settingsDirectoryOverride: tempDir);
+
+            Assert.True(firstRunVm.IsOnboardingOpen);
+            Assert.False(firstRunVm.HasCompletedOnboarding);
+
+            firstRunVm.DismissOnboardingGuide(dontShowAgain: true);
+            Assert.False(firstRunVm.IsOnboardingOpen);
+            Assert.True(firstRunVm.HasCompletedOnboarding);
+
+            var reloadedSettings = AppSettingsStore.Load(tempDir);
+            Assert.True(reloadedSettings.HasCompletedOnboarding);
+
+            var secondRunVm = new Walkman.L3.AppShell.ViewModels.MainWindowViewModel(
+                new Walkman.L3.AppShell.Services.WalkmanBackendService(),
+                new Walkman.L3.AppShell.Services.AudioPlaybackService(),
+                autostart: false,
+                suppressSettingsSave: false,
+                settingsDirectoryOverride: tempDir);
+
+            Assert.False(secondRunVm.IsOnboardingOpen);
+            secondRunVm.OpenOnboardingGuideCommand.Execute(null);
+            Assert.True(secondRunVm.IsOnboardingOpen);
+
+            // UI-20: Dump submission Tally URL constant
+            Assert.Equal("https://tally.so/r/ArBeRN", Walkman.L3.AppShell.ViewModels.MainWindowViewModel.DumpSubmissionFormUrl);
+
+            // COD-10 + COD-37: UI slot preset clamping, warning text, WIP gate & MP3 fallback prompt dismissal
+            Assert.False(firstRunVm.CanAllocateAtrac3PlusSlots);
+            firstRunVm.SetAllocateSlotCountCommand.Execute("25");
+            Assert.Equal(25, firstRunVm.AllocateSlotCount);
+            firstRunVm.SetAllocateSlotCountCommand.Execute("9999");
+            Assert.Equal(512, firstRunVm.AllocateSlotCount);
+            Assert.Contains("0x0001", firstRunVm.OpenMgSlotAllocationWarningText, StringComparison.Ordinal);
+            firstRunVm.OpenMgRuntimePromptMessage = "Missing Sony runtime";
+            firstRunVm.IsOpenMgRuntimePromptOpen = true;
+            firstRunVm.SwitchToMp3ModeFromOpenMgPromptCommand.Execute(null);
+            Assert.False(firstRunVm.IsOpenMgRuntimePromptOpen);
+            Assert.Equal(UploadMode.Auto, firstRunVm.FmUploadMode);
+
+            // COD-26 + COD-37: ATRAC3 / ATRAC1 target codecs are gated to ATRAC3+ for v0.1.1b (including persisted preferences)
+            firstRunVm.SetConverterCodecCommand.Execute(TargetCodec.Atrac3);
+            Assert.Equal(TargetCodec.Atrac3Plus, firstRunVm.ConvTargetCodec);
+            Assert.False(firstRunVm.IsTargetAtrac3);
+            Assert.False(firstRunVm.ShowAtrac3Bitrates);
+            Assert.Equal(BitrateOption.K256, firstRunVm.ConvBitrate);
+
+            firstRunVm.SetConverterCodecCommand.Execute(TargetCodec.Atrac1);
+            Assert.Equal(TargetCodec.Atrac3Plus, firstRunVm.ConvTargetCodec);
+            Assert.False(firstRunVm.IsTargetAtrac1);
+            Assert.False(firstRunVm.ShowAtrac1Bitrate);
+
+            firstRunVm.SetConverterCodecCommand.Execute(TargetCodec.Mp3);
+            Assert.Equal(TargetCodec.Mp3, firstRunVm.ConvTargetCodec);
+
+            var reloadedCodecVm = new Walkman.L3.AppShell.ViewModels.MainWindowViewModel(
+                new Walkman.L3.AppShell.Services.WalkmanBackendService(),
+                new Walkman.L3.AppShell.Services.AudioPlaybackService(),
+                autostart: true,
+                suppressSettingsSave: false,
+                settingsDirectoryOverride: tempDir);
+            Assert.Equal(TargetCodec.Mp3, reloadedCodecVm.ConvTargetCodec);
+            Assert.Equal(BitrateOption.K256, reloadedCodecVm.ConvBitrate);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Ui22_BottomTransferDockSanitizesRawPathsAndStderrAndKeepsSingleLine()
+    {
+        string rawStderrError =
+            "Transcode failed for V:\\works\\Personal Projects\\Apollo project\\test folder\\sample.wav\r\n" +
+            "Stderr: ffmpeg version 6.1 Copyright (c) 2000-2023\r\n" +
+            "Error opening input file V:\\works\\Personal Projects\\Apollo project\\test folder\\sample.wav";
+
+        string sanitized = MainWindowViewModel.SanitizeTransferErrorForDock(rawStderrError);
+        Assert.DoesNotContain("\n", sanitized);
+        Assert.DoesNotContain("\r", sanitized);
+        Assert.DoesNotContain("V:\\", sanitized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Stderr:", sanitized, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Audio encoder failed — hover for details", sanitized);
+
+        string rawGenericPathError = "Could not open file C:\\Users\\ilyal\\Music\\Track 01.mp3 for writing";
+        string genericSanitized = MainWindowViewModel.SanitizeTransferErrorForDock(rawGenericPathError);
+        Assert.DoesNotContain("C:\\", genericSanitized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\n", genericSanitized);
+
+        var vm = new MainWindowViewModel(
+            new WalkmanBackendService(),
+            new Walkman.L3.AppShell.Services.AudioPlaybackService(),
+            suppressSettingsSave: true);
+        vm.TransferJob = new ActiveTransferJob(
+            "err-job",
+            "0 ok, 1 failed",
+            rawStderrError,
+            "MP3 192k",
+            0,
+            1,
+            100,
+            0,
+            IsCompleted: false,
+            IsError: true,
+            ErrorText: rawStderrError);
+
+        Assert.Equal("Failed", vm.TransferJobEtaText);
+        Assert.DoesNotContain("V:\\", vm.TransferJobStageCodec, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Stderr:", vm.TransferJobStageCodec, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\n", vm.TransferJobStageCodec);
+        Assert.Equal(rawStderrError, vm.TransferJobErrorTooltip);
     }
 
     private static string ResolvePluginDllPath(string codebaseRoot, string configuration, string moduleId)

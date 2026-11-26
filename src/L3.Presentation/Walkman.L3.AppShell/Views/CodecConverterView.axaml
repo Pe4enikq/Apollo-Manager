@@ -245,12 +245,26 @@
               </Grid>
 
               <Grid Grid.Row="2" RowDefinitions="*,5,*">
-                <Grid Grid.Row="0" ColumnDefinitions="*,5,*,5,*">
-                  <Button Grid.Column="0" Classes="metal-button" Classes.under-glow-green="{Binding ConvAtracGreen}" Classes.under-glow-blue="{Binding ConvAtracBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvAtracOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Atrac3Plus}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <TextBlock Text="ATRAC3+" FontSize="11.5" FontWeight="SemiBold" />
+                <Grid Grid.Row="0" ColumnDefinitions="*,5,*">
+                  <Button Grid.Column="0" Classes="metal-button" Classes.under-glow-green="{Binding ConvAtracGreen}" Classes.under-glow-blue="{Binding ConvAtracBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvAtracOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Atrac3Plus}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="2,0">
+                    <TextBlock Text="ATRAC3+" FontSize="11" FontWeight="SemiBold" />
                   </Button>
-                  <Button Grid.Column="2" Classes="metal-button" Classes.under-glow-green="{Binding ConvMp3Green}" Classes.under-glow-blue="{Binding ConvMp3Blue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvMp3Opacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Mp3}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <TextBlock Text="MP3" FontSize="11.5" FontWeight="SemiBold" />
+                  <Button IsVisible="False" Classes="metal-button" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Atrac3}">
+                    <TextBlock Text="ATRAC3" FontSize="11" FontWeight="SemiBold" />
+                  </Button>
+                  <Button IsVisible="False" Classes="metal-button" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Atrac1}">
+                    <TextBlock Text="ATRAC1" FontSize="11" FontWeight="SemiBold" />
+                  </Button>
+                  <Button Grid.Column="2" Classes="metal-button" Classes.under-glow-green="{Binding ConvMp3Green}" Classes.under-glow-blue="{Binding ConvMp3Blue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvMp3Opacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Mp3}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="2,0">
+                    <TextBlock Text="MP3" FontSize="11" FontWeight="SemiBold" />
+                  </Button>
+                </Grid>
+                <Grid Grid.Row="2" ColumnDefinitions="*,5,*,5,*">
+                  <Button Grid.Column="0" Classes="metal-button" Classes.under-glow-green="{Binding ConvFlacGreen}" Classes.under-glow-blue="{Binding ConvFlacBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvFlacOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Flac}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <TextBlock Text="FLAC" FontSize="11.5" FontWeight="SemiBold" />
+                  </Button>
+                  <Button Grid.Column="2" Classes="metal-button" Classes.under-glow-green="{Binding ConvWavGreen}" Classes.under-glow-blue="{Binding ConvWavBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvWavOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Wav}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <TextBlock Text="WAV" FontSize="11.5" FontWeight="SemiBold" />
                   </Button>
                   <Button Grid.Column="4" Classes="metal-button" Classes.under-glow-green="{Binding ConvAacGreen}" Classes.under-glow-blue="{Binding ConvAacBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvAacOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Aal}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ToolTip.ShowDelay="1000">
                     <ToolTip.Tip>
@@ -263,19 +277,11 @@
                       </StackPanel>
                     </ToolTip.Tip>
                     <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                      <TextBlock Text="AAL" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                      <TextBlock Text="AAL" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
                       <Border Classes="wip-badge">
                         <TextBlock Text="WIP" Classes="wip-badge-text" />
                       </Border>
                     </StackPanel>
-                  </Button>
-                </Grid>
-                <Grid Grid.Row="2" ColumnDefinitions="*,5,*">
-                  <Button Grid.Column="0" Classes="metal-button" Classes.under-glow-green="{Binding ConvFlacGreen}" Classes.under-glow-blue="{Binding ConvFlacBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvFlacOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Flac}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <TextBlock Text="FLAC" FontSize="11.5" FontWeight="SemiBold" />
-                  </Button>
-                  <Button Grid.Column="2" Classes="metal-button" Classes.under-glow-green="{Binding ConvWavGreen}" Classes.under-glow-blue="{Binding ConvWavBlue}" IsEnabled="{Binding !IsConvCodecLocked}" Opacity="{Binding ConvWavOpacity}" Command="{Binding SetConverterCodecCommand}" CommandParameter="{x:Static core:TargetCodec.Wav}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                    <TextBlock Text="WAV" FontSize="11.5" FontWeight="SemiBold" />
                   </Button>
                 </Grid>
               </Grid>
@@ -291,7 +297,7 @@
               </Grid>
 
               <Panel Height="28">
-                <Border Classes="glass-clear-box" CornerRadius="8" IsVisible="{Binding !ShowLossyBitrates}" Padding="8,0">
+                <Border Classes="glass-clear-box" CornerRadius="8" IsVisible="{Binding IsLosslessTarget}" Padding="8,0">
                   <TextBlock Text="Lossless uncompressed 16-bit PCM"
                              FontFamily="{StaticResource AeroMonoFont}"
                              FontSize="10.5"
@@ -299,7 +305,7 @@
                              VerticalAlignment="Center"
                              HorizontalAlignment="Center" />
                 </Border>
-                <Grid IsVisible="{Binding ShowLossyBitrates}" ColumnDefinitions="*,5,*,5,*,5,*" Height="28">
+                <Grid IsVisible="{Binding ShowStandardBitrates}" ColumnDefinitions="*,5,*,5,*,5,*" Height="28">
                   <Button Grid.Column="0" Classes="metal-button" CornerRadius="8" Classes.under-glow-green="{Binding Conv352Green}" Classes.under-glow-blue="{Binding Conv352Blue}" IsEnabled="{Binding !IsConvBitrateLocked}" Opacity="{Binding Conv352Opacity}" Command="{Binding SetConverterBitrateCommand}" CommandParameter="{x:Static core:BitrateOption.K352}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                     <TextBlock Text="352k" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" FontWeight="SemiBold" />
                   </Button>
@@ -313,6 +319,30 @@
                     <TextBlock Text="128k" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" FontWeight="SemiBold" />
                   </Button>
                 </Grid>
+                <Grid IsVisible="{Binding ShowAtrac3Bitrates}" ColumnDefinitions="*,5,*,5,*" Height="28">
+                  <Button Grid.Column="0" Classes="metal-button" CornerRadius="8" Classes.under-glow-green="{Binding Conv132Green}" Classes.under-glow-blue="{Binding Conv132Blue}" IsEnabled="{Binding !IsConvBitrateLocked}" Opacity="{Binding Conv132Opacity}" Command="{Binding SetConverterBitrateCommand}" CommandParameter="{x:Static core:BitrateOption.K132}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <TextBlock Text="132k (LP2)" FontFamily="{StaticResource AeroMonoFont}" FontSize="10.5" FontWeight="SemiBold" />
+                  </Button>
+                  <Button Grid.Column="2" Classes="metal-button" CornerRadius="8" Classes.under-glow-green="{Binding Conv105Green}" Classes.under-glow-blue="{Binding Conv105Blue}" IsEnabled="{Binding !IsConvBitrateLocked}" Opacity="{Binding Conv105Opacity}" Command="{Binding SetConverterBitrateCommand}" CommandParameter="{x:Static core:BitrateOption.K105}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <TextBlock Text="105k" FontFamily="{StaticResource AeroMonoFont}" FontSize="10.5" FontWeight="SemiBold" />
+                  </Button>
+                  <Button Grid.Column="4" Classes="metal-button" CornerRadius="8" Classes.under-glow-green="{Binding Conv66Green}" Classes.under-glow-blue="{Binding Conv66Blue}" IsEnabled="{Binding !IsConvBitrateLocked}" Opacity="{Binding Conv66Opacity}" Command="{Binding SetConverterBitrateCommand}" CommandParameter="{x:Static core:BitrateOption.K66}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <TextBlock Text="66k (LP4)" FontFamily="{StaticResource AeroMonoFont}" FontSize="10.5" FontWeight="SemiBold" />
+                  </Button>
+                </Grid>
+                <Button IsVisible="{Binding ShowAtrac1Bitrate}"
+                        Classes="metal-button"
+                        CornerRadius="8"
+                        Height="28"
+                        Classes.under-glow-green="{Binding Conv292Green}"
+                        Classes.under-glow-blue="{Binding Conv292Blue}"
+                        IsEnabled="{Binding !IsConvBitrateLocked}"
+                        Opacity="{Binding Conv292Opacity}"
+                        Command="{Binding SetConverterBitrateCommand}"
+                        CommandParameter="{x:Static core:BitrateOption.K292}"
+                        HorizontalAlignment="Stretch">
+                  <TextBlock Text="292k (SP) · MiniDisc / NetMD .aea" FontFamily="{StaticResource AeroMonoFont}" FontSize="10.5" FontWeight="SemiBold" />
+                </Button>
               </Panel>
 
               <Grid ColumnDefinitions="*,5,*" Height="28">

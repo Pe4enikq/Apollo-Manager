@@ -68,11 +68,14 @@ public sealed class RadialGlassRingControl : Control
     private ComputedRingSector? _tooltipSector;
     private IReadOnlyList<string>? _tooltipCategories;
 
+    private static readonly IReadOnlyDictionary<string, float> EmptyHover = new Dictionary<string, float>(0, StringComparer.Ordinal);
     private IReadOnlyList<ComputedRingSector> _sectors = Array.Empty<ComputedRingSector>();
     private AeroSkiaHelpers.RefCountedSectorBatch? _cachedBatch;
     private AeroSkiaHelpers.RefCountedSectorBatch? _prevCachedBatch;
     private IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> _cachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
     private IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> _prevCachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
+    private readonly Dictionary<(bool IsDark, bool DeviceConnected, string SubmenuKey), (IReadOnlyList<ComputedRingSector> Sectors, IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> Items, AeroSkiaHelpers.RefCountedSectorBatch Batch)> _batchCache = new();
+    private Window? _hostWindow;
 
     public RadialGlassRingControl()
     {
@@ -86,6 +89,7 @@ public sealed class RadialGlassRingControl : Control
         ExpandedProperty.Changed.AddClassHandler<RadialGlassRingControl>((c, _) => c.OnExpandedChanged());
         DeviceConnectedProperty.Changed.AddClassHandler<RadialGlassRingControl>((c, _) => c.OnDeviceConnectedChanged());
         IsDarkProperty.Changed.AddClassHandler<RadialGlassRingControl>((c, _) => c.RebuildSectors(animateLiveTransition: false));
+        IsVisibleProperty.Changed.AddClassHandler<RadialGlassRingControl>((c, _) => c.StartAnimationIfNeeded());
     }
 
     public string? ActiveSubmenuParentId => _submenuParentId;
@@ -147,6 +151,11 @@ public sealed class RadialGlassRingControl : Control
     {
         base.OnAttachedToVisualTree(e);
         _isAttached = true;
+        _hostWindow = TopLevel.GetTopLevel(this) as Window;
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged += OnHostWindowPropertyChanged;
+        }
         if (_cachedBatch is null)
         {
             RebuildSectors(animateLiveTransition: false);
@@ -157,13 +166,29 @@ public sealed class RadialGlassRingControl : Control
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isAttached = false;
-        _cachedBatch?.Release();
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged -= OnHostWindowPropertyChanged;
+            _hostWindow = null;
+        }
         _cachedBatch = null;
-        _prevCachedBatch?.Release();
         _prevCachedBatch = null;
         _cachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
         _prevCachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
+        foreach (var entry in _batchCache.Values)
+        {
+            entry.Batch.Release();
+        }
+        _batchCache.Clear();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnHostWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Window.WindowStateProperty)
+        {
+            StartAnimationIfNeeded();
+        }
     }
 
     private void OnExpandedChanged()
@@ -178,7 +203,6 @@ public sealed class RadialGlassRingControl : Control
             _tooltipSector = null;
             _tooltipCategories = null;
             _liveSwapT = 1.0;
-            _prevCachedBatch?.Release();
             _prevCachedBatch = null;
             _prevCachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
             RebuildSectors(animateLiveTransition: false);
@@ -206,20 +230,26 @@ public sealed class RadialGlassRingControl : Control
         }
         if (animateLiveTransition && _cachedBatch is not null && _cachedSectors.Count > 0)
         {
-            _prevCachedBatch?.Release();
             _prevCachedBatch = _cachedBatch;
             _prevCachedSectors = _cachedSectors;
-            _cachedBatch = null;
             _liveSwapT = 0.0;
         }
         else
         {
-            _prevCachedBatch?.Release();
             _prevCachedBatch = null;
             _prevCachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
-            _cachedBatch?.Release();
-            _cachedBatch = null;
             _liveSwapT = 1.0;
+        }
+
+        string submenuKey = $"{_submenuParentId ?? string.Empty}|{_lockedBackIndex?.ToString() ?? ""}";
+        var cacheKey = (IsDark, DeviceConnected, submenuKey);
+        if (_batchCache.TryGetValue(cacheKey, out var hit))
+        {
+            _sectors = hit.Sectors;
+            _cachedSectors = hit.Items;
+            _cachedBatch = hit.Batch;
+            InvalidateVisual();
+            return;
         }
 
         var (items, backIdx) = ModuleRegistry.ResolveActiveRingModules(
@@ -239,8 +269,9 @@ public sealed class RadialGlassRingControl : Control
             anchorIndex: _submenuParentId is not null && backIdx >= 0 ? backIdx : null,
             anchorAngleDeg: _anchorAngleDeg);
 
-        _cachedSectors = AeroSkiaHelpers.BakeSectorCache(_sectors, Center, Center, IsDark);
+        _cachedSectors = AeroSkiaHelpers.BakeSectorCache(_sectors, Center, Center, IsDark, bakeHorizontalLabel: true);
         _cachedBatch = new AeroSkiaHelpers.RefCountedSectorBatch(_cachedSectors);
+        _batchCache[cacheKey] = (_sectors, _cachedSectors, _cachedBatch);
         InvalidateVisual();
     }
 
@@ -269,6 +300,11 @@ public sealed class RadialGlassRingControl : Control
 
     private bool NeedsAnimation()
     {
+        if (!IsVisible || _hostWindow?.WindowState == WindowState.Minimized)
+        {
+            return false;
+        }
+
         double target = Expanded && !_pendingSwap ? 1.0 : 0.0;
         return _pendingSwap
                || Math.Abs(_expandT - target) > 0.004
@@ -349,7 +385,6 @@ public sealed class RadialGlassRingControl : Control
             if (_liveSwapT >= 0.995)
             {
                 _liveSwapT = 1.0;
-                _prevCachedBatch?.Release();
                 _prevCachedBatch = null;
                 _prevCachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
             }
@@ -511,7 +546,9 @@ public sealed class RadialGlassRingControl : Control
             prevSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
         }
 
-        var hoverSnapshot = new Dictionary<string, float>(_hoverT, StringComparer.Ordinal);
+        IReadOnlyDictionary<string, float> hoverSnapshot = _hoverT.Count == 0
+            ? EmptyHover
+            : new Dictionary<string, float>(_hoverT, StringComparer.Ordinal);
         context.Custom(new RingDrawOp(
             new Rect(Bounds.Size),
             batch,
@@ -536,11 +573,12 @@ public sealed class RadialGlassRingControl : Control
         bool isDark,
         float expandT,
         float liveSwapT,
-        Dictionary<string, float> hoverValues,
+        IReadOnlyDictionary<string, float> hoverValues,
         Point cursorPos,
         ComputedRingSector? tooltipSector,
         IReadOnlyList<string>? tooltipCategories) : ICustomDrawOperation
     {
+        private static readonly SKMaskFilter TooltipShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 9f);
         private AeroSkiaHelpers.RefCountedSectorBatch? _sectorBatch = sectorBatch;
         private AeroSkiaHelpers.RefCountedSectorBatch? _prevSectorBatch = prevSectorBatch;
 
@@ -554,8 +592,37 @@ public sealed class RadialGlassRingControl : Control
                 return false;
             }
 
-            float dist = AeroSkiaHelpers.Hypot((float)p.X - (float)Center, (float)p.Y - (float)Center);
-            return dist >= 132f && dist <= 332f;
+            float px = (float)p.X;
+            float py = (float)p.Y;
+            float dist = AeroSkiaHelpers.Hypot(px - (float)Center, py - (float)Center);
+            if (dist < 132f || dist > 332f)
+            {
+                return false;
+            }
+
+            var batch = Volatile.Read(ref _sectorBatch);
+            var sectors = batch?.TryAcquire();
+            if (sectors is null)
+            {
+                return false;
+            }
+
+            try
+            {
+                foreach (var cached in sectors)
+                {
+                    if (cached.Path.Contains(px, py))
+                    {
+                        return true;
+                    }
+                }
+            }
+            finally
+            {
+                batch!.Release();
+            }
+
+            return false;
         }
 
         public void Dispose()
@@ -625,7 +692,7 @@ public sealed class RadialGlassRingControl : Control
         private static void DrawSectorBatch(
             SKCanvas canvas,
             IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> batch,
-            Dictionary<string, float> hoverValues,
+            IReadOnlyDictionary<string, float> hoverValues,
             bool isDark,
             float batchOpacity)
         {
@@ -639,10 +706,6 @@ public sealed class RadialGlassRingControl : Control
                 double popDist = 9.0 * hoverT;
                 float tx = (float)(Math.Cos(rad) * popDist);
                 float ty = (float)(Math.Sin(rad) * popDist);
-                float lx = (float)sector.LabelX + tx;
-                float ly = (float)sector.LabelY + ty;
-
-                bool isLarge = sector.Module.IsLargeIcon;
 
                 // Pre-baked 0 deg neon-under-glass icon centered behind label (strictly hover-only, zero live blur)
                 if (hoverT > 0.01f && cached.NeonGlowImage is not null)
@@ -655,38 +718,22 @@ public sealed class RadialGlassRingControl : Control
                     canvas.DrawImage(cached.NeonGlowImage, cached.NeonOriginX + tx, cached.NeonOriginY + ty, neonPaint);
                 }
 
-                // Crisp horizontal Century Gothic Bold typography (with subtle legibility halo over glowing glass)
-                byte txtAlpha = (byte)Math.Round(255 * batchOpacity);
-                byte haloAlpha = (byte)Math.Round((isDark ? 150 : 195) * batchOpacity);
-                using var titleHalo = new SKPaint
+                // Pre-baked 2x supersampled label bitmap (eliminates per-frame CPU text layout)
+                if (cached.LabelImage is not null)
                 {
-                    IsAntialias = true,
-                    TextSize = isLarge ? 16.5f : 15f,
-                    TextAlign = SKTextAlign.Center,
-                    Typeface = AeroSkiaHelpers.DisplayBold,
-                    Color = isDark ? new SKColor(8, 14, 22, haloAlpha) : new SKColor(255, 255, 255, haloAlpha)
-                };
-                canvas.DrawText(sector.Module.Title, lx, ly + 3f, titleHalo);
-
-                using var titlePaint = new SKPaint
-                {
-                    IsAntialias = true,
-                    TextSize = isLarge ? 16.5f : 15f,
-                    TextAlign = SKTextAlign.Center,
-                    Typeface = AeroSkiaHelpers.DisplayBold,
-                    Color = isDark ? new SKColor(244, 248, 252, txtAlpha) : new SKColor(15, 23, 42, txtAlpha)
-                };
-                canvas.DrawText(sector.Module.Title, lx, ly + 2f, titlePaint);
-
-                using var subPaint = new SKPaint
-                {
-                    IsAntialias = true,
-                    TextSize = 12.5f,
-                    TextAlign = SKTextAlign.Center,
-                    Typeface = AeroSkiaHelpers.InterSemiBold,
-                    Color = isDark ? new SKColor(203, 213, 225, (byte)(230 * batchOpacity)) : new SKColor(58, 72, 92, (byte)(240 * batchOpacity))
-                };
-                canvas.DrawText(sector.Module.Subtitle, lx, ly + 21f, subPaint);
+                    using var lblPaint = new SKPaint
+                    {
+                        IsAntialias = true,
+                        FilterQuality = SKFilterQuality.Medium,
+                        Color = new SKColor(255, 255, 255, (byte)Math.Round(255 * batchOpacity))
+                    };
+                    var lblRect = new SKRect(
+                        cached.LabelOriginX + tx,
+                        cached.LabelOriginY + ty,
+                        cached.LabelOriginX + tx + cached.LabelLogicalW,
+                        cached.LabelOriginY + ty + cached.LabelLogicalH);
+                    canvas.DrawImage(cached.LabelImage, lblRect, lblPaint);
+                }
             }
         }
 
@@ -725,12 +772,11 @@ public sealed class RadialGlassRingControl : Control
             float y = 14f;
 
             var rect = new SKRoundRect(new SKRect(x, y, x + boxW, y + boxH), 11f, 11f);
-            using (var shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 9f))
             using (var shadow = new SKPaint
             {
                 IsAntialias = true,
                 Color = isDark ? new SKColor(0, 0, 0, 120) : new SKColor(38, 66, 94, 42),
-                MaskFilter = shadowBlur
+                MaskFilter = TooltipShadowBlur
             })
             {
                 canvas.DrawRoundRect(rect, shadow);

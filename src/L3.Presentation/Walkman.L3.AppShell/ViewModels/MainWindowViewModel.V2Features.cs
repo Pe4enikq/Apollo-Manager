@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -55,6 +56,186 @@ public sealed partial class MainWindowViewModel
     [ObservableProperty] private bool _fwPatchVolumeCap;
     [ObservableProperty] private DumpProbeOption? _selectedDumpProbe;
     [ObservableProperty] private string _dumpWizardStatusText = "Select a connected or unrecognized Sony USB device to export telemetry.";
+    [ObservableProperty] private int _allocateSlotCount = 10;
+    [ObservableProperty] private string _allocateSlotCountText = "10";
+    [ObservableProperty] private bool _isOpenMgRuntimePromptOpen;
+    [ObservableProperty] private string _openMgRuntimePromptMessage = string.Empty;
+    [ObservableProperty] private bool _isAllocatingSlots;
+    private int _pendingSlotAllocationCount;
+    private bool _syncingAllocateSlotCount;
+
+    partial void OnAllocateSlotCountChanged(int value)
+    {
+        if (_syncingAllocateSlotCount)
+        {
+            return;
+        }
+
+        _syncingAllocateSlotCount = true;
+        try
+        {
+            int clamped = Math.Clamp(value, 1, 512);
+            if (clamped != value)
+            {
+                AllocateSlotCount = clamped;
+            }
+
+            AllocateSlotCountText = clamped.ToString(CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _syncingAllocateSlotCount = false;
+        }
+    }
+
+    partial void OnAllocateSlotCountTextChanged(string value)
+    {
+        if (_syncingAllocateSlotCount)
+        {
+            return;
+        }
+
+        if (int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            _syncingAllocateSlotCount = true;
+            try
+            {
+                int clamped = Math.Clamp(parsed, 1, 512);
+                AllocateSlotCount = clamped;
+                if (clamped != parsed)
+                {
+                    AllocateSlotCountText = clamped.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+            finally
+            {
+                _syncingAllocateSlotCount = false;
+            }
+        }
+    }
+
+    public string OpenMgSlotAllocationWarningText =>
+        "Coming Soon · WIP (v0.2.0b): Direct new 0x0001 ATRAC3+ slot minting is gated in v0.1.1b. Existing pre-signed slots can still be recycled automatically by deleting tracks, or use MP3 (0xFFFE).";
+
+    public bool CanAllocateAtrac3PlusSlots => false;
+
+    [RelayCommand]
+    private async Task AllocateAtrac3PlusSlotsAsync()
+    {
+        ShowToast(
+            "Coming Soon · WIP (v0.2.0b)",
+            "Direct 0x0001 slot minting is gated in v0.1.1b. Delete an existing ATRAC3+ track to recycle its slot, or use MP3 mode.",
+            ToastSeverity.Info);
+        await Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private async Task LocateOpenMgInstallerAsync()
+    {
+        if (PickOpenGenericFileAsyncHandler is null)
+        {
+            ShowToast("Installer Picker Unavailable", "Select and run your Sony OpenMG / SonicStage installer manually, then retry.", ToastSeverity.Info);
+            return;
+        }
+
+        string? installerPath = await PickOpenGenericFileAsyncHandler(
+            "Locate Sony OpenMG / SonicStage Installer",
+            "Windows Installer (*.exe;*.msi)",
+            "*.exe;*.msi");
+        if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installerPath)
+            {
+                UseShellExecute = true
+            });
+            if (proc is not null)
+            {
+                await proc.WaitForExitAsync();
+            }
+
+            var cap = _backend.ProbeOpenMgIcvBridgeCapability();
+            if (cap is { IsHostRuntimePresent: true })
+            {
+                IsOpenMgRuntimePromptOpen = false;
+                ShowToast("OpenMG Runtime Detected", "Host Sony OpenMG Secure Module detected. Resuming slot allocation...", ToastSeverity.Success);
+                if (_pendingSlotAllocationCount > 0)
+                {
+                    AllocateSlotCount = _pendingSlotAllocationCount;
+                    _pendingSlotAllocationCount = 0;
+                    await AllocateAtrac3PlusSlotsAsync();
+                }
+            }
+            else
+            {
+                ShowToast("OpenMG Still Not Found", "hdwmcom.dll was not detected after installer exit. You can retry or switch to MP3 Mode.", ToastSeverity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Installer Launch Failed", ex.Message, ToastSeverity.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenOpenMgHelpGuide()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://archive.org/details/sony-sonicstage-4.3-ultimate")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore shell open failure on headless test hosts.
+        }
+
+        ShowToast(
+            "OpenMG Secure Module Guide",
+            "Install Sony OpenMG Secure Module (included with SonicStage 4.3 Ultimate) so Apollo can mint new 0x0001 slots via Windows COM, or switch to MP3 Mode for zero-dependency transfers.",
+            ToastSeverity.Info,
+            durationSeconds: 8.0);
+    }
+
+    [RelayCommand]
+    private void SwitchToMp3ModeFromOpenMgPrompt()
+    {
+        IsOpenMgRuntimePromptOpen = false;
+        _pendingSlotAllocationCount = 0;
+        FmUploadMode = UploadMode.Auto;
+        ShowToast("Switched to MP3 Mode", "MP3 (0xFFFE) mode active — transfers work immediately with zero Sony software.", ToastSeverity.Success);
+    }
+
+    [RelayCommand]
+    private void SetAllocateSlotCount(string countStr)
+    {
+        if (int.TryParse(countStr, out int count))
+        {
+            AllocateSlotCount = Math.Clamp(count, 1, 512);
+        }
+    }
+
+    [RelayCommand]
+    private void AdjustAllocateSlotCount(string deltaStr)
+    {
+        if (int.TryParse(deltaStr, out int delta))
+        {
+            AllocateSlotCount = Math.Clamp(AllocateSlotCount + delta, 1, 512);
+        }
+    }
+
+    [RelayCommand]
+    private void DismissOpenMgRuntimePrompt()
+    {
+        IsOpenMgRuntimePromptOpen = false;
+        _pendingSlotAllocationCount = 0;
+    }
 
     public Func<string, string, string, Task<string?>>? PickOpenGenericFileAsyncHandler { get; set; }
     public Func<string, string, string, Task<string?>>? PickSaveGenericFileAsyncHandler { get; set; }
@@ -368,10 +549,7 @@ public sealed partial class MainWindowViewModel
             return 0;
         }
 
-        var supportedExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".oma"
-        };
+        var supportedExts = WalkmanBackendService.SupportedAudioExtensions;
 
         int imported = 0;
         string? firstFolder = null;
@@ -679,10 +857,41 @@ public sealed partial class MainWindowViewModel
         }
     }
 
+    public const string DumpSubmissionFormUrl = "https://tally.so/r/ArBeRN";
+
     [RelayCommand]
     private void ShowPostMvpNotice(string actionName)
     {
         ShowToast("Post-MVP Maintenance", $"'{actionName}' is queued for Post-MVP device R&D.", ToastSeverity.Info);
+    }
+
+    [RelayCommand]
+    private void OpenDumpSubmissionForm()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(DumpSubmissionFormUrl) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Browser Launch Failed", $"Open {DumpSubmissionFormUrl} manually ({ex.Message}).", ToastSeverity.Warning);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenOnboardingGuide()
+    {
+        IsOnboardingOpen = true;
+    }
+
+    public void DismissOnboardingGuide(bool dontShowAgain)
+    {
+        IsOnboardingOpen = false;
+        if (dontShowAgain && !HasCompletedOnboarding)
+        {
+            HasCompletedOnboarding = true;
+            PersistSettings();
+        }
     }
 
     private void LoadSavedSettingsAndInitializeOverlay()
@@ -717,10 +926,7 @@ public sealed partial class MainWindowViewModel
             {
                 var matchedSpec = FileManagerStateLogic.CustomCodecSpecs.FirstOrDefault(
                     c => string.Equals(c.DisplayName, s.FmCustomCodecDisplayName, StringComparison.OrdinalIgnoreCase));
-                if (matchedSpec is not null)
-                {
-                    FmCustomCodec = matchedSpec;
-                }
+                FmCustomCodec = matchedSpec ?? FileManagerStateLogic.CustomCodecSpecs[1];
             }
 
             FmNormalizeVolume = s.FmNormalizeVolume;
@@ -740,6 +946,7 @@ public sealed partial class MainWindowViewModel
                 ConvertedOutputFolder = s.CustomConvertedFolder;
             }
 
+            // ATRAC3 / ATRAC1 are gated for v0.2.0b; coerce any previously saved v0.2.0b-dev preference cleanly to ATRAC3+.
             ConvTargetCodec = s.PreferredCodec switch
             {
                 "MP3" => TargetCodec.Mp3,
@@ -754,6 +961,7 @@ public sealed partial class MainWindowViewModel
                 "352k" => BitrateOption.K352,
                 "192k" => BitrateOption.K192,
                 "128k" => BitrateOption.K128,
+                "Lossless" when ConverterStateLogic.IsLosslessCodec(ConvTargetCodec) => BitrateOption.Lossless,
                 _ => BitrateOption.K256
             };
 
@@ -768,6 +976,7 @@ public sealed partial class MainWindowViewModel
             ShowLibColRating = s.ShowLibColRating;
             ShowLibColCodec = s.ShowLibColCodec;
             ShowLibColDuration = s.ShowLibColDuration;
+            HasCompletedOnboarding = s.HasCompletedOnboarding;
         }
 
         _player.Volume = PlayerVolume;
@@ -815,7 +1024,8 @@ public sealed partial class MainWindowViewModel
             FmNormalizeVolume: FmNormalizeVolume,
             FmRewriteTables: FmRewriteTables,
             FmRewriteLock: FmRewriteLock,
-            FmSafeEjectAfter: FmSafeEjectAfter);
+            FmSafeEjectAfter: FmSafeEjectAfter,
+            HasCompletedOnboarding: HasCompletedOnboarding);
 
         AppSettingsStore.Save(dto, _settingsDirectoryOverride);
     }

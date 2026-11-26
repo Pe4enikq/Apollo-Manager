@@ -29,22 +29,31 @@ public sealed class OpenMgCryptoService : IOpenMgCryptoService
     /// <inheritdoc />
     public OmaHeaderInfo ParseHeader(ReadOnlySpan<byte> omaData)
     {
-        if (omaData.Length < 10 + Ea3DescriptorSize)
+        if (omaData.Length < Ea3DescriptorSize)
         {
-            throw new InvalidDataException("OMA buffer is too short to contain ea3 and EA3 headers.");
+            throw new InvalidDataException("OMA buffer is too short to contain EA3 header.");
         }
 
-        if (omaData[0] != (byte)'e' || omaData[1] != (byte)'a' || omaData[2] != (byte)'3')
+        int ea3TotalSize;
+        if (omaData[0] == (byte)'E' && omaData[1] == (byte)'A' && omaData[2] == (byte)'3')
         {
-            throw new InvalidDataException("Missing lowercase 'ea3' container prefix.");
+            // Raw EA3 container without lowercase 'ea3' ID3v2 prefix (common in .aa3 and atracdenc outputs).
+            ea3TotalSize = 0;
         }
-
-        int ea3BodySize = DecodeSynchsafe(omaData.Slice(6, 4));
-        int ea3TotalSize = 10 + ea3BodySize;
-        if (ea3TotalSize + Ea3DescriptorSize > omaData.Length)
+        else if (omaData.Length >= 10 + Ea3DescriptorSize &&
+                 omaData[0] == (byte)'e' && omaData[1] == (byte)'a' && omaData[2] == (byte)'3')
         {
-            throw new InvalidDataException(
-                $"OMA buffer length ({omaData.Length}) is smaller than declared ea3+EA3 offset ({ea3TotalSize + Ea3DescriptorSize}).");
+            int ea3BodySize = DecodeSynchsafe(omaData.Slice(6, 4));
+            ea3TotalSize = 10 + ea3BodySize;
+            if (ea3TotalSize + Ea3DescriptorSize > omaData.Length)
+            {
+                throw new InvalidDataException(
+                    $"OMA buffer length ({omaData.Length}) is smaller than declared ea3+EA3 offset ({ea3TotalSize + Ea3DescriptorSize}).");
+            }
+        }
+        else
+        {
+            throw new InvalidDataException("Missing 'ea3' or 'EA3' container prefix.");
         }
 
         string title = string.Empty;
@@ -181,7 +190,37 @@ public sealed class OpenMgCryptoService : IOpenMgCryptoService
         uint durationMs = BinaryPrimitives.ReadUInt32BigEndian(ea3.Slice(36, 4));
         uint frameCount = BinaryPrimitives.ReadUInt32BigEndian(ea3.Slice(40, 4));
 
+        int payloadBytes = Math.Max(0, omaData.Length - (ea3TotalSize + Ea3DescriptorSize));
+        if (frameCount == 0 && payloadBytes > 0)
+        {
+            if (codecId == AudioCodecId.Atrac3Plus)
+            {
+                int frameBytes = ((int)(codecParams24 & 0x3FF) + 1) * 8;
+                if (frameBytes > 0)
+                {
+                    frameCount = (uint)(payloadBytes / frameBytes);
+                }
+            }
+            else if (codecId == AudioCodecId.Atrac3)
+            {
+                int frameBytes = (int)(codecParams24 & 0x3FF) * 8;
+                if (frameBytes > 0)
+                {
+                    frameCount = (uint)(payloadBytes / frameBytes);
+                }
+            }
+        }
+
         uint effectiveDurationMs = durationMs > 0 ? durationMs : tagDurationMs;
+        if (effectiveDurationMs == 0 && frameCount > 0)
+        {
+            effectiveDurationMs = codecId switch
+            {
+                AudioCodecId.Atrac3Plus => (uint)Math.Round(frameCount * 2048.0 * 1000.0 / 44100.0, MidpointRounding.AwayFromZero),
+                AudioCodecId.Atrac3 => (uint)Math.Round(frameCount * 1024.0 * 1000.0 / 44100.0, MidpointRounding.AwayFromZero),
+                _ => 0u
+            };
+        }
         var tags = new Ea3TagMetadata(
             title,
             artist,

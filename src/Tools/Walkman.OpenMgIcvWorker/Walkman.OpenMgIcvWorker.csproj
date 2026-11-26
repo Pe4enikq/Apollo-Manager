@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
+    <PlatformTarget>x86</PlatformTarget>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>Walkman.OpenMgIcvWorker</AssemblyName>
+    <RootNamespace>Walkman.OpenMgIcvWorker</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Optional 32-bit Windows out-of-process COM bridge for Sony OpenMG Hardware ICV signing (zero Sony binaries bundled).</Description>
+  </PropertyGroup>
+</Project>

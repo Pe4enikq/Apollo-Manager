@@ -126,6 +126,31 @@ internal static class AudioResamplerPipeline
                     throw;
                 }
             }
+            case ".aiff":
+            case ".aif":
+            {
+                var aiff = new AiffFileReader(sourcePath);
+                try
+                {
+                    return new DecodedSampleStream(aiff.ToSampleProvider(), aiff);
+                }
+                catch
+                {
+                    aiff.Dispose();
+                    throw;
+                }
+            }
+            case ".oma":
+            case ".aa3":
+            case ".omg":
+            case ".at3":
+            case ".at9":
+            case ".aea":
+            case ".wv":
+            case ".ape":
+            {
+                return OpenViaVgmstreamWav(sourcePath);
+            }
             default:
             {
                 if (OperatingSystem.IsWindows())
@@ -167,6 +192,73 @@ internal static class AudioResamplerPipeline
         public ISampleProvider Provider { get; }
 
         public void Dispose() => _resource.Dispose();
+    }
+
+    private static DecodedSampleStream OpenViaVgmstreamWav(string sourcePath)
+    {
+        string tempWav = Path.Combine(Path.GetTempPath(), $"apollo_vgm_{Guid.NewGuid():N}.wav");
+        try
+        {
+            if (Path.GetExtension(sourcePath).Equals(".aea", StringComparison.OrdinalIgnoreCase))
+            {
+                string atracdencExe = ExternalCodecToolRunner.ResolveToolExecutable("atracdenc", "atracdenc.exe");
+                ExternalCodecToolRunner.RunProcessAsync(atracdencExe, ["-d", "-i", sourcePath, "-o", tempWav], CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            else
+            {
+                string vgmCli = ExternalCodecToolRunner.ResolveToolExecutable("vgmstream", "vgmstream-cli.exe");
+                ExternalCodecToolRunner.RunProcessAsync(vgmCli, ["-o", tempWav, sourcePath], CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            if (!File.Exists(tempWav))
+            {
+                throw new InvalidDataException($"External decoder failed to decode '{Path.GetFileName(sourcePath)}'.");
+            }
+
+            var reader = new WaveFileReader(tempWav);
+            var cleanup = new TempFileDisposable(reader, tempWav);
+            return new DecodedSampleStream(reader.ToSampleProvider(), cleanup);
+        }
+        catch
+        {
+            if (File.Exists(tempWav))
+            {
+                try { File.Delete(tempWav); } catch { }
+            }
+
+            // Fallback to Windows Media Foundation if a host codec is registered (e.g. WavPack/APE DirectShow/MF).
+            if (OperatingSystem.IsWindows())
+            {
+                var mf = new MediaFoundationReader(sourcePath);
+                return new DecodedSampleStream(mf.ToSampleProvider(), mf);
+            }
+
+            throw;
+        }
+    }
+
+    private sealed class TempFileDisposable : IDisposable
+    {
+        private readonly IDisposable _inner;
+        private readonly string _tempPath;
+
+        public TempFileDisposable(IDisposable inner, string tempPath)
+        {
+            _inner = inner;
+            _tempPath = tempPath;
+        }
+
+        public void Dispose()
+        {
+            try { _inner.Dispose(); } catch { }
+            if (File.Exists(_tempPath))
+            {
+                try { File.Delete(_tempPath); } catch { }
+            }
+        }
     }
 
     private sealed class VorbisSampleProvider : ISampleProvider

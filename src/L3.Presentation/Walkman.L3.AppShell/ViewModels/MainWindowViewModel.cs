@@ -132,6 +132,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty] private NwmProjectDto? _loadedNwmProject;
     [ObservableProperty] private string _nwmProjectSummary = "Built-in dot-matrix generator ready (120×36 0xEC01)";
     [ObservableProperty] private bool _autoBackupOmgaudioBeforeWrite;
+    [ObservableProperty] private bool _hasCompletedOnboarding;
+    [ObservableProperty] private bool _isOnboardingOpen;
 
     public Func<string, Task<string?>>? PickFolderAsyncHandler { get; set; }
     public Func<Task<string?>>? PickNwmOpenFileAsyncHandler { get; set; }
@@ -176,6 +178,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _libraryFolderDisplay = _defaultMusicFolder;
 
         LoadSavedSettingsAndInitializeOverlay();
+        if (!HasCompletedOnboarding && !autostart && !suppressSettingsSave)
+        {
+            IsOnboardingOpen = true;
+        }
         LoadRealTracksFromFolder(_defaultMusicFolder, "pc-library");
 
         _player.StateChanged += OnAudioPlayerStateChanged;
@@ -342,15 +348,24 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public string ConverterBitrateRightText => IsLosslessTarget ? "16-bit PCM" : ConverterStateLogic.GetBitrateLabel(ConvBitrate);
     public string ConverterBitrateHeader => IsLosslessTarget ? "BIT DEPTH / RATE" : "BITRATE & SAMPLE RATE";
     public bool IsTargetAtrac3Plus => ConvTargetCodec == TargetCodec.Atrac3Plus;
+    public bool IsTargetAtrac3 => ConvTargetCodec == TargetCodec.Atrac3;
+    public bool IsTargetAtrac1 => ConvTargetCodec == TargetCodec.Atrac1;
     public bool IsTargetMp3 => ConvTargetCodec == TargetCodec.Mp3;
     public bool IsTargetAal => ConvTargetCodec == TargetCodec.Aal;
     public bool IsTargetAac => IsTargetAal;
     public bool IsTargetFlac => ConvTargetCodec == TargetCodec.Flac;
     public bool IsTargetWav => ConvTargetCodec == TargetCodec.Wav;
+    public bool ShowStandardBitrates => IsTargetAtrac3Plus || IsTargetMp3;
+    public bool ShowAtrac3Bitrates => IsTargetAtrac3;
+    public bool ShowAtrac1Bitrate => IsTargetAtrac1;
     public bool IsBitrate352 => ConvBitrate == BitrateOption.K352;
+    public bool IsBitrate292 => ConvBitrate == BitrateOption.K292;
     public bool IsBitrate256 => ConvBitrate == BitrateOption.K256;
     public bool IsBitrate192 => ConvBitrate == BitrateOption.K192;
+    public bool IsBitrate132 => ConvBitrate == BitrateOption.K132;
     public bool IsBitrate128 => ConvBitrate == BitrateOption.K128;
+    public bool IsBitrate105 => ConvBitrate == BitrateOption.K105;
+    public bool IsBitrate66 => ConvBitrate == BitrateOption.K66;
     public bool IsRate44100 => ConvSampleRate == SampleRateOption.Hz44100;
     public bool IsRate48000 => ConvSampleRate == SampleRateOption.Hz48000;
     public bool IsConvCodecLocked => ConverterStateLogic.IsConverterControlLocked(ConvRememberChoice, ConverterControlKind.TargetCodec);
@@ -816,21 +831,42 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             NotifyFmStorageProjection();
             RebuildV3ListEntries();
 
+            string? firstRawError = result.Errors.FirstOrDefault();
+            string dockStageLabel = result.FailedCount == 0
+                ? $"Committed to OMGAUDIO ({groupName})"
+                : SanitizeTransferErrorForDock(firstRawError);
+
             TransferJob = new ActiveTransferJob(
                 Guid.NewGuid().ToString("N"),
                 result.FailedCount == 0 ? $"{result.SucceededCount} file(s) transferred" : $"{result.SucceededCount} ok, {result.FailedCount} failed",
-                result.FailedCount == 0 ? $"Committed to OMGAUDIO ({groupName})" : result.Errors.FirstOrDefault() ?? "Partial failure",
+                dockStageLabel,
                 FileManagerStateLogic.DescribeEffectiveCodec(CurrentFmConfig),
                 result.SucceededCount,
                 selected.Count,
                 100,
                 0,
                 IsCompleted: result.FailedCount == 0,
-                IsError: result.FailedCount > 0);
+                IsError: result.FailedCount > 0,
+                ErrorText: result.FailedCount > 0 ? firstRawError : null);
+
+            if (result.FailedCount > 0 &&
+                targetCodec is AudioCodecId.Atrac3 or AudioCodecId.Atrac3Plus &&
+                result.Errors.Any(e => e.Contains("0x0001", StringComparison.OrdinalIgnoreCase) || e.Contains("MACLIST0", StringComparison.OrdinalIgnoreCase)))
+            {
+                var bridgeCap = _backend.ProbeOpenMgIcvBridgeCapability();
+                if (bridgeCap is { IsWorkerAvailable: true, IsHostRuntimePresent: false })
+                {
+                    _pendingSlotAllocationCount = Math.Clamp(result.FailedCount, 1, 512);
+                    OpenMgRuntimePromptMessage = bridgeCap.StatusMessage;
+                    IsOpenMgRuntimePromptOpen = true;
+                }
+            }
 
             ShowToast(
                 result.FailedCount == 0 ? "Transfer Complete" : "Transfer Partial",
-                $"{result.SucceededCount}/{selected.Count} track(s) sent to {destDevice.Model}.",
+                result.FailedCount == 0
+                    ? $"{result.SucceededCount}/{selected.Count} track(s) sent to {destDevice.Model}."
+                    : $"{result.SucceededCount}/{selected.Count} track(s) sent to {destDevice.Model}. {dockStageLabel}",
                 result.FailedCount == 0 ? ToastSeverity.Success : ToastSeverity.Warning);
 
             if (FmSafeEjectAfter)
@@ -883,12 +919,29 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void SetConverterCodec(TargetCodec codec)
     {
         if (IsConvCodecLocked) return;
+        // ATRAC3 / ATRAC1 target encoding is gated for v0.2.0b; keep v0.1.1b users on verified ATRAC3+.
+        if (codec is TargetCodec.Atrac3 or TargetCodec.Atrac1)
+        {
+            codec = TargetCodec.Atrac3Plus;
+        }
+
         ConvTargetCodec = codec;
         if (ConverterStateLogic.IsLosslessCodec(codec))
         {
             ConvBitrate = BitrateOption.Lossless;
         }
-        else if (ConvBitrate == BitrateOption.Lossless)
+        else if (codec == TargetCodec.Atrac3)
+        {
+            if (ConvBitrate is not (BitrateOption.K132 or BitrateOption.K105 or BitrateOption.K66))
+            {
+                ConvBitrate = BitrateOption.K132;
+            }
+        }
+        else if (codec == TargetCodec.Atrac1)
+        {
+            ConvBitrate = BitrateOption.K292;
+        }
+        else if (ConvBitrate is BitrateOption.Lossless or BitrateOption.K292 or BitrateOption.K132 or BitrateOption.K105 or BitrateOption.K66)
         {
             ConvBitrate = BitrateOption.K256;
         }
@@ -973,7 +1026,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (allHaveDiskSource && ConvTargetCodec is TargetCodec.Atrac3Plus or TargetCodec.Mp3 or TargetCodec.Wav or TargetCodec.Flac)
+        if (allHaveDiskSource && ConvTargetCodec is TargetCodec.Atrac3Plus or TargetCodec.Atrac3 or TargetCodec.Atrac1 or TargetCodec.Mp3 or TargetCodec.Wav or TargetCodec.Flac)
         {
             int done = 0;
             foreach (var trk in selected)
@@ -1467,6 +1520,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsFwReadyBattery));
         OnPropertyChanged(nameof(FirmwareDeviceReadinessText));
         OnPropertyChanged(nameof(FirmwareBatteryReadinessText));
+        OnPropertyChanged(nameof(CanAllocateAtrac3PlusSlots));
     }
     partial void OnTransferJobChanged(ActiveTransferJob? value)
     {
@@ -1480,13 +1534,80 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanStartTransfer));
         OnPropertyChanged(nameof(CanCommitPendingDeviceChanges));
         OnPropertyChanged(nameof(CanStartConvert));
+        OnPropertyChanged(nameof(CanAllocateAtrac3PlusSlots));
         OnPropertyChanged(nameof(TransferButtonLabel));
         OnPropertyChanged(nameof(ConvertButtonLabel));
         OnPropertyChanged(nameof(TransferJobProgressText));
         OnPropertyChanged(nameof(TransferJobEtaText));
         OnPropertyChanged(nameof(TransferJobStageCodec));
+        OnPropertyChanged(nameof(TransferJobErrorTooltip));
         OnPropertyChanged(nameof(TransferJobProgressPct));
         OnPropertyChanged(nameof(SummaryEngineTitle));
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex WindowsPathRegex =
+        new(@"[A-Za-z]:\\(?:[^\\/:*?""<>|\r\n]+\\)*[^\\/:*?""<>|\r\n]*", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex UnixPathRegex =
+        new(@"(?<![A-Za-z0-9_])/(?:[^\s/'""]+/)+[^\s'""]+", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    public static string SanitizeTransferErrorForDock(string? rawError)
+    {
+        if (string.IsNullOrWhiteSpace(rawError))
+        {
+            return "Transfer failed";
+        }
+
+        string text = rawError.Replace("\r\n", "\n").Replace('\r', '\n');
+        int stderrIdx = text.IndexOf("Stderr:", StringComparison.OrdinalIgnoreCase);
+        bool hadCliStderr = stderrIdx >= 0;
+        if (stderrIdx >= 0)
+        {
+            text = text[..stderrIdx];
+        }
+
+        string firstLine = text
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault() ?? string.Empty;
+
+        firstLine = WindowsPathRegex.Replace(firstLine, string.Empty);
+        firstLine = UnixPathRegex.Replace(firstLine, string.Empty);
+        firstLine = System.Text.RegularExpressions.Regex.Replace(firstLine, @"\s{2,}", " ").Trim(' ', ':', ';', '-', '(', ')');
+
+        if (rawError.Contains("0x0001", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("MACLIST0", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("hdwmcom", StringComparison.OrdinalIgnoreCase))
+        {
+            return "OpenMG 0x0001 slot/runtime error — hover for details";
+        }
+
+        if (hadCliStderr ||
+            rawError.Contains("ffmpeg", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("atracdenc", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("lame", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("exit code", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Audio encoder failed — hover for details";
+        }
+
+        if (rawError.Contains("Access is denied", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("UnauthorizedAccess", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Access denied writing to player";
+        }
+
+        if (rawError.Contains("disk full", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("not enough space", StringComparison.OrdinalIgnoreCase) ||
+            rawError.Contains("ENOSPC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Not enough free space on player";
+        }
+
+        if (string.IsNullOrWhiteSpace(firstLine))
+        {
+            return "Transfer failed — hover for details";
+        }
+
+        return firstLine.Length > 76 ? $"{firstLine[..73].TrimEnd()}..." : firstLine;
     }
     partial void OnPlayerTrackChanged(AudioTrackItem? value)
     {
@@ -1596,11 +1717,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ConverterBitrateRightText));
         OnPropertyChanged(nameof(ConverterBitrateHeader));
         OnPropertyChanged(nameof(IsTargetAtrac3Plus));
+        OnPropertyChanged(nameof(IsTargetAtrac3));
+        OnPropertyChanged(nameof(IsTargetAtrac1));
         OnPropertyChanged(nameof(IsTargetMp3));
         OnPropertyChanged(nameof(IsTargetAal));
         OnPropertyChanged(nameof(IsTargetAac));
         OnPropertyChanged(nameof(IsTargetFlac));
         OnPropertyChanged(nameof(IsTargetWav));
+        OnPropertyChanged(nameof(ShowStandardBitrates));
+        OnPropertyChanged(nameof(ShowAtrac3Bitrates));
+        OnPropertyChanged(nameof(ShowAtrac1Bitrate));
         NotifyConvStates();
         PersistSettings();
     }
@@ -1609,9 +1735,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ConverterSubtitle));
         OnPropertyChanged(nameof(ConverterBitrateRightText));
         OnPropertyChanged(nameof(IsBitrate352));
+        OnPropertyChanged(nameof(IsBitrate292));
         OnPropertyChanged(nameof(IsBitrate256));
         OnPropertyChanged(nameof(IsBitrate192));
+        OnPropertyChanged(nameof(IsBitrate132));
         OnPropertyChanged(nameof(IsBitrate128));
+        OnPropertyChanged(nameof(IsBitrate105));
+        OnPropertyChanged(nameof(IsBitrate66));
         NotifyConvStates();
         PersistSettings();
     }

@@ -127,7 +127,19 @@ internal static class OmgTableFraming
             }
         }
 
-        return usedBytes == 0 ? string.Empty : Encoding.BigEndianUnicode.GetString(textSpan.Slice(0, usedBytes));
+        return usedBytes == 0
+            ? string.Empty
+            : Encoding.BigEndianUnicode.GetString(textSpan.Slice(0, usedBytes)).TrimEnd('\0').Trim().Normalize(NormalizationForm.FormC);
+    }
+
+    public static string NormalizeGroupKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Replace("\0", string.Empty, StringComparison.Ordinal).Trim().Normalize(NormalizationForm.FormC);
     }
 
     public static int Align16(int value) => (value + 15) & ~15;

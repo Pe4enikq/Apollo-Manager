@@ -205,7 +205,7 @@
       </ScrollViewer>
     </Grid>
 
-    <!-- TAB 2: FIRMWARE (POST-MVP STRUCTURED FACEPLATE) -->
+    <!-- TAB 2: FIRMWARE (COMING SOON / FULL WIP LOCKOUT) -->
     <ctrl:BrushedMetalPanel Grid.Row="2"
                             IsVisible="{Binding IsDeviceFirmwareTab}"
                             IsDark="{Binding IsDark}"
@@ -213,7 +213,7 @@
                             VerticalAlignment="Top"
                             MaxWidth="940"
                             HorizontalAlignment="Left">
-      <Grid RowDefinitions="Auto,16,Auto,16,Auto,18,Auto" Margin="26,24">
+      <Grid RowDefinitions="Auto,12,Auto,14,Auto,14,Auto,16,Auto" Margin="26,24">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
           <StackPanel Grid.Column="0" Spacing="3">
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -225,7 +225,7 @@
               <Border Classes="wip-badge">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                   <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
-                  <TextBlock Text="WIP · POST-MVP" Classes="wip-badge-text" />
+                  <TextBlock Text="COMING SOON · WIP" Classes="wip-badge-text" />
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -242,8 +242,21 @@
           </Border>
         </Grid>
 
+        <!-- Explicit Coming Soon / WIP Lockout Banner -->
+        <Border Grid.Row="2" Classes="wip-badge" Padding="14,10" CornerRadius="12" HorizontalAlignment="Stretch">
+          <Grid ColumnDefinitions="Auto,10,*">
+            <ctrl:StrokeIcon Grid.Column="0" Data="{x:Static ctrl:AeroIcons.Lock}" Width="14" Height="14" Foreground="{DynamicResource AeroDangerInkBrush}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       Text="Coming Soon / WIP — Direct Walkman firmware flashing &amp; EEPROM region/volume patching are not active in this beta. Controls below are intentionally locked for hardware safety."
+                       FontSize="12"
+                       FontWeight="Medium"
+                       Foreground="{DynamicResource AeroInkBrush}"
+                       TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+
         <!-- Readiness Checklist Well -->
-        <Border Grid.Row="2" Classes="metal-well" Padding="16,12">
+        <Border Grid.Row="4" Classes="metal-well" Padding="16,12" Opacity="0.72">
           <Grid ColumnDefinitions="*,14,*,14,*">
             <StackPanel Grid.Column="0" Spacing="4">
               <TextBlock Text="1. USB HANDSHAKE" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
@@ -255,39 +268,47 @@
             </StackPanel>
             <StackPanel Grid.Column="4" Spacing="4">
               <TextBlock Text="3. PACKAGE CRC32" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
-              <TextBlock Text="Post-MVP Verifier Ready" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Foreground="{DynamicResource AeroSkyInkBrush}" />
+              <TextBlock Text="Post-MVP Verifier (Locked)" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" />
             </StackPanel>
           </Grid>
         </Border>
 
-        <!-- Firmware Package Picker Well -->
-        <Border Grid.Row="4" Classes="metal-well" Padding="16,12">
+        <!-- Firmware Package Picker Well (Locked WIP) -->
+        <Border Grid.Row="6" Classes="metal-well" Padding="16,12" Opacity="0.62" IsEnabled="False">
           <Grid ColumnDefinitions="*,12,Auto">
             <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
               <TextBlock Text="FIRMWARE BINARY IMAGE (.BIN / .FW / .UPG)" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AeroMutedBrush}" />
               <TextBlock Text="{Binding FwPackagePath}" FontFamily="{StaticResource AeroMonoFont}" FontSize="12" TextTrimming="CharacterEllipsis" />
             </StackPanel>
-            <Button Grid.Column="2" Classes="glass-clear" Command="{Binding BrowseFirmwarePackageCommand}" Content="Select Package..." Padding="14,7" />
+            <Button Grid.Column="2"
+                    Classes="glass-clear"
+                    IsEnabled="False"
+                    Command="{Binding BrowseFirmwarePackageCommand}"
+                    Content="Select Package... (WIP)"
+                    Padding="14,7" />
           </Grid>
         </Border>
 
-        <!-- Patch Flags & Aligned Right Upload to Player -->
-        <Grid Grid.Row="6" ColumnDefinitions="*,16,Auto">
-          <Border Grid.Column="0" Classes="metal-well" Padding="14,10">
+        <!-- Patch Flags & Locked CTA -->
+        <Grid Grid.Row="8" ColumnDefinitions="*,16,Auto" Opacity="0.62">
+          <Border Grid.Column="0" Classes="metal-well" Padding="14,10" IsEnabled="False">
             <StackPanel Orientation="Horizontal" Spacing="20">
-              <CheckBox IsChecked="{Binding FwPatchRegionUnlock}" Content="Dest region / language unlock (Post-MVP)" FontSize="12" />
-              <CheckBox IsChecked="{Binding FwPatchVolumeCap}" Content="Remove EU SPL output limiter (Post-MVP)" FontSize="12" />
+              <CheckBox IsEnabled="False" IsChecked="{Binding FwPatchRegionUnlock}" Content="Dest region / language unlock (Coming Soon)" FontSize="12" />
+              <CheckBox IsEnabled="False" IsChecked="{Binding FwPatchVolumeCap}" Content="Remove EU SPL output limiter (Coming Soon)" FontSize="12" />
             </StackPanel>
           </Border>
           <Button Grid.Column="2"
-                  Classes="metal-button under-glow-blue"
+                  Classes="metal-button"
+                  IsEnabled="False"
                   Command="{Binding UploadFirmwarePostMvpCommand}"
                   Height="42"
                   Padding="22,0"
                   CornerRadius="18"
-                  VerticalAlignment="Center">
+                  VerticalAlignment="Center"
+                  ToolTip.ShowOnDisabled="True"
+                  ToolTip.Tip="Coming Soon / WIP — Firmware flashing will unlock after Post-MVP hardware verification.">
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Upload}" Width="14" Height="14" />
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="14" Height="14" Foreground="{DynamicResource AeroDangerInkBrush}" />
               <TextBlock Text="Upload to Player" FontSize="13.5" FontWeight="Bold" />
               <Border Classes="wip-badge">
                 <TextBlock Text="WIP" Classes="wip-badge-text" />
@@ -305,6 +326,10 @@
           <StackPanel Grid.Row="0" Spacing="3">
             <TextBlock Text="DIAGNOSTIC TELEMETRY ARCHIVER" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
             <TextBlock Text="Unrecognized &amp; Live USB Probes" FontSize="17" FontWeight="Bold" />
+            <TextBlock Text="Export a safe hardware snapshot archive to help add support for your Sony Walkman model or troubleshoot OMGAUDIO table quirks."
+                       FontSize="12"
+                       Foreground="{DynamicResource AeroMutedBrush}"
+                       TextWrapping="Wrap" />
           </StackPanel>
 
           <ComboBox Grid.Row="2"
@@ -323,15 +348,15 @@
           </ComboBox>
 
           <Border Grid.Row="4" Classes="glass-clear-box" CornerRadius="14" Padding="16">
-            <StackPanel Spacing="10">
-              <TextBlock Text="Sanitized Telemetry Capture Manifest (~50 KB .ZIP)" FontSize="13" FontWeight="SemiBold" />
-              <TextBlock Text="• USB VID/PID, Volume Serial, DvID, &amp; FAT16 BPB diagnostics" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" />
-              <TextBlock Text="• Raw OMGAUDIO metadata &amp; tables (track/album/artist names, MACLIST0, 00010021.DAT) for RE debugging" FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
-              <TextBlock Text="• Zero audio files or unrelated personal USB files leave your PC" FontSize="12" Foreground="{DynamicResource AeroLimeInkBrush}" FontWeight="SemiBold" />
+            <StackPanel Spacing="9">
+              <TextBlock Text="What &quot;Create / Export Archive&quot; Does (~50 KB .ZIP)" FontSize="13" FontWeight="SemiBold" />
+              <TextBlock Text="1. Inspects only your selected player's USB VID/PID, Volume Serial, DvID key info, and FAT16 BPB boot sector." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+              <TextBlock Text="2. Packages raw OMGAUDIO index tables &amp; crypto metadata (track/album/artist names, MACLIST0, 00010021.DAT) for clean-room RE debugging." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+              <TextBlock Text="3. Zero music tracks, .OMA audio streams, or unrelated personal files ever leave your PC." FontSize="12" Foreground="{DynamicResource AeroLimeInkBrush}" FontWeight="SemiBold" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
 
-          <Grid Grid.Row="6" ColumnDefinitions="*,14,Auto">
+          <Grid Grid.Row="6" ColumnDefinitions="*,12,Auto,8,Auto">
             <TextBlock Grid.Column="0"
                        Text="{Binding DumpWizardStatusText}"
                        FontSize="12"
@@ -339,15 +364,27 @@
                        VerticalAlignment="Center"
                        TextWrapping="Wrap" />
             <Button Grid.Column="2"
+                    Classes="glass-clear"
+                    Command="{Binding OpenDumpSubmissionFormCommand}"
+                    Height="40"
+                    Padding="14,0"
+                    CornerRadius="16"
+                    ToolTip.Tip="Open https://tally.so/r/ArBeRN to submit your diagnostic .ZIP to developers">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Submit via Tally" FontSize="12.5" FontWeight="SemiBold" />
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.ArrowUpRight}" Width="13" Height="13" Foreground="{DynamicResource AeroSkyInkBrush}" />
+              </StackPanel>
+            </Button>
+            <Button Grid.Column="4"
                     Classes="metal-button under-glow-green"
                     IsEnabled="{Binding CanStartDump}"
                     Command="{Binding ExportDiagnosticDumpCommand}"
                     Height="40"
-                    Padding="20,0"
+                    Padding="18,0"
                     CornerRadius="18">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.DumpArchive}" Width="14" Height="14" />
-                <TextBlock Text="Export Diagnostic .ZIP..." FontSize="13" FontWeight="Bold" />
+                <TextBlock Text="Create Archive (.ZIP)..." FontSize="13" FontWeight="Bold" />
               </StackPanel>
             </Button>
           </Grid>
@@ -396,15 +433,99 @@
         </Grid>
       </Border>
 
-      <ctrl:BrushedMetalPanel Grid.Column="2" IsDark="{Binding IsDark}" CornerRadiusValue="18" VerticalAlignment="Top">
-        <StackPanel Margin="22" Spacing="14">
+      <ScrollViewer Grid.Column="2" Padding="0,0,6,8" VerticalAlignment="Top">
+        <StackPanel Spacing="14">
+          <!-- Built-In 0x0001 ATRAC3+ Slot Allocator (COD-10) -->
+          <ctrl:BrushedMetalPanel IsDark="{Binding IsDark}" CornerRadiusValue="18">
+            <StackPanel Margin="20" Spacing="11">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <TextBlock Text="OPENMG 0x0001 ATRAC3+ SLOTS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
+                  <TextBlock Text="Allocate Hardware-Signed Slots" FontSize="15.5" FontWeight="Bold" />
+                </StackPanel>
+                <Border Grid.Column="1" Classes="wip-badge" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                    <TextBlock Text="COMING SOON · WIP (v0.2.0b)" Classes="wip-badge-text" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <TextBlock Text="{Binding OpenMgSlotAllocationWarningText}"
+                         FontSize="11.5"
+                         Foreground="{DynamicResource AeroMutedBrush}"
+                         TextWrapping="Wrap" />
+
+              <Border Classes="metal-well" Padding="12,10" IsEnabled="False" Opacity="0.72">
+                <Grid ColumnDefinitions="Auto,10,*,Auto">
+                  <TextBlock Grid.Column="0" Text="Slots:" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <Button Classes="glass-clear"
+                            Width="28"
+                            Height="30"
+                            Padding="0"
+                            CornerRadius="9"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Content="−"
+                            Command="{Binding AdjustAllocateSlotCountCommand}"
+                            CommandParameter="-1" />
+                    <TextBox Classes="glass-input"
+                             Text="{Binding AllocateSlotCountText, Mode=TwoWay}"
+                             Width="54"
+                             Height="30"
+                             Padding="4,0"
+                             MaxLength="3"
+                             CornerRadius="9"
+                             HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center"
+                             FontFamily="{StaticResource AeroMonoFont}"
+                             FontSize="12.5"
+                             FontWeight="SemiBold" />
+                    <Button Classes="glass-clear"
+                            Width="28"
+                            Height="30"
+                            Padding="0"
+                            CornerRadius="9"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Content="+"
+                            Command="{Binding AdjustAllocateSlotCountCommand}"
+                            CommandParameter="1" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="glass-clear" Height="28" Padding="8,0" CornerRadius="8" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Content="10" Command="{Binding SetAllocateSlotCountCommand}" CommandParameter="10" />
+                    <Button Classes="glass-clear" Height="28" Padding="8,0" CornerRadius="8" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Content="25" Command="{Binding SetAllocateSlotCountCommand}" CommandParameter="25" />
+                    <Button Classes="glass-clear" Height="28" Padding="8,0" CornerRadius="8" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Content="50" Command="{Binding SetAllocateSlotCountCommand}" CommandParameter="50" />
+                    <Button Classes="glass-clear" Height="28" Padding="8,0" CornerRadius="8" FontFamily="{StaticResource AeroMonoFont}" FontSize="11" Content="100" Command="{Binding SetAllocateSlotCountCommand}" CommandParameter="100" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <Button Classes="metal-button"
+                      IsEnabled="False"
+                      Opacity="0.65"
+                      Height="38"
+                      CornerRadius="16"
+                      HorizontalAlignment="Stretch"
+                      ToolTip.Tip="COMING SOON · WIP (v0.2.0b) — Direct OpenMG slot minting is gated in v0.1.1b. Deleting an existing 0x0001 track recycles its pre-signed slot automatically.">
+                <TextBlock Text="Allocate ATRAC3+ Slots" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Button>
+            </StackPanel>
+          </ctrl:BrushedMetalPanel>
+
+          <ctrl:BrushedMetalPanel IsDark="{Binding IsDark}" CornerRadiusValue="18">
+            <StackPanel Margin="22" Spacing="14">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="ADVANCED SERVICE &amp; MAINTENANCE" FontSize="11.5" FontWeight="SemiBold" LetterSpacing="1" Foreground="{DynamicResource AeroMutedBrush}" />
-            <Border Classes="demo-badge">
-              <TextBlock Text="POST-MVP" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            <Border Classes="wip-badge">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
+                <TextBlock Text="COMING SOON · WIP" Classes="wip-badge-text" />
+              </StackPanel>
             </Border>
           </StackPanel>
-          <TextBlock Text="Autonomous service tools run automatically after database scans. Manual overrides are reserved for diagnostics:"
+          <TextBlock Text="Apollo already detects and repairs common OMGAUDIO table corruption automatically during scans. The manual recovery tools below are planned for Post-MVP and currently disabled:"
                      FontSize="12"
                      Foreground="{DynamicResource AeroMutedBrush}"
                      TextWrapping="Wrap" />
@@ -412,12 +533,21 @@
           <Border Classes="metal-well" Padding="14">
             <StackPanel Spacing="10">
               <Button Classes="glass-clear"
+                      IsEnabled="False"
+                      Opacity="0.76"
                       Command="{Binding ShowPostMvpNoticeCommand}"
                       CommandParameter="Rewrite OpenMG Register Table"
                       HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
+                      HorizontalContentAlignment="Stretch"
+                      ToolTip.ShowOnDisabled="True">
+                <ToolTip.Tip>
+                  <TextBlock Text="Post-MVP (WIP): Resynchronizes 0x0001 MagicGate MACLIST0 / Hardware ICV key register slots when recovering corrupted OpenMG licenses." TextWrapping="Wrap" MaxWidth="260" FontSize="11.5" />
+                </ToolTip.Tip>
                 <Grid ColumnDefinitions="*,8,Auto">
-                  <TextBlock Grid.Column="0" Text="Rewrite OpenMG 0x0001 Key Registers" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Rewrite OpenMG 0x0001 Key Registers" FontWeight="SemiBold" />
+                    <TextBlock Text="Re-signs MACLIST0 &amp; hardware ICV slot entries for 0x0001 players." FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+                  </StackPanel>
                   <Border Grid.Column="2" Classes="wip-badge">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                       <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
@@ -427,12 +557,21 @@
                 </Grid>
               </Button>
               <Button Classes="glass-clear"
+                      IsEnabled="False"
+                      Opacity="0.76"
                       Command="{Binding ShowPostMvpNoticeCommand}"
                       CommandParameter="Rebuild OMGAUDIO Indexes"
                       HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
+                      HorizontalContentAlignment="Stretch"
+                      ToolTip.ShowOnDisabled="True">
+                <ToolTip.Tip>
+                  <TextBlock Text="Post-MVP (WIP): Reconstructs 01TREE, 03GINF, 04CNTINF, and 05CIDLST databases from existing on-device .OMA files (common issues are already auto-repaired on scan)." TextWrapping="Wrap" MaxWidth="260" FontSize="11.5" />
+                </ToolTip.Tip>
                 <Grid ColumnDefinitions="*,8,Auto">
-                  <TextBlock Grid.Column="0" Text="Force Full OMGAUDIO Index Rebuild" VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Force Full OMGAUDIO Index Rebuild" FontWeight="SemiBold" />
+                    <TextBlock Text="Reconstructs 01TREE/03GINF/04CNTINF tables from .OMA headers." FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+                  </StackPanel>
                   <Border Grid.Column="2" Classes="wip-badge">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                       <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
@@ -442,12 +581,21 @@
                 </Grid>
               </Button>
               <Button Classes="glass-clear"
+                      IsEnabled="False"
+                      Opacity="0.76"
                       Command="{Binding ShowPostMvpNoticeCommand}"
                       CommandParameter="Factory Initialize Player Database"
                       HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
+                      HorizontalContentAlignment="Stretch"
+                      ToolTip.ShowOnDisabled="True">
+                <ToolTip.Tip>
+                  <TextBlock Text="Post-MVP (WIP): Creates a clean blank OMGAUDIO skeleton directory and index tables matching Sony factory formatting." TextWrapping="Wrap" MaxWidth="260" FontSize="11.5" />
+                </ToolTip.Tip>
                 <Grid ColumnDefinitions="*,8,Auto">
-                  <TextBlock Grid.Column="0" Text="Reset Player OMGAUDIO Structure..." VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Reset Player OMGAUDIO Structure..." FontWeight="SemiBold" />
+                    <TextBlock Text="Wipes and initializes a clean factory OMGAUDIO table skeleton." FontSize="11" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+                  </StackPanel>
                   <Border Grid.Column="2" Classes="wip-badge">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                       <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Lock}" Width="9" Height="9" Foreground="{DynamicResource AeroDangerInkBrush}" />
@@ -458,8 +606,10 @@
               </Button>
             </StackPanel>
           </Border>
+            </StackPanel>
+          </ctrl:BrushedMetalPanel>
         </StackPanel>
-      </ctrl:BrushedMetalPanel>
+      </ScrollViewer>
     </Grid>
   </Grid>
 </UserControl>

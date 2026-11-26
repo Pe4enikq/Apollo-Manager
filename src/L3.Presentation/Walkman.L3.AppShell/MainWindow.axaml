@@ -8,10 +8,12 @@
         x:DataType="vm:MainWindowViewModel"
         Title="Apollo Manager"
         Icon="/Assets/apollo-icon.ico"
+        SystemDecorations="Full"
+        CanResize="True"
         Width="1440"
         Height="900"
-        MinWidth="1260"
-        MinHeight="780"
+        MinWidth="960"
+        MinHeight="640"
         WindowStartupLocation="CenterScreen">
   <Grid x:Name="RootGrid"
         Background="Transparent"
@@ -74,6 +76,18 @@
               <StackPanel Orientation="Horizontal" Spacing="7">
                 <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.SettingsGear}" Width="13" Height="13" StrokeThickness="1.8" />
                 <TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+
+            <Button Classes="metal-button"
+                    CornerRadius="16"
+                    Height="34"
+                    Padding="14,0"
+                    Command="{Binding OpenOnboardingGuideCommand}"
+                    ToolTip.Tip="Open Starting Guide flash cards">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="13" Height="13" StrokeThickness="1.8" Foreground="{DynamicResource AeroLimeInkBrush}" />
+                <TextBlock Text="Guide" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
           </StackPanel>
@@ -461,5 +475,100 @@
         </StackPanel>
       </Border>
     </Grid>
+
+    <!-- LEGAL 3-CHOICE OPENMG 0x0001 MISSING-RUNTIME MODAL (COD-10) -->
+    <Grid IsVisible="{Binding IsOpenMgRuntimePromptOpen}"
+          Background="{DynamicResource ModalBackdropBrush}">
+      <Border Classes="aero-modal-card"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="520"
+              Padding="26,22">
+        <StackPanel Spacing="14">
+          <Grid ColumnDefinitions="Auto,12,*,Auto">
+            <Border Grid.Column="0" Classes="glass-clear-box" Width="40" Height="40" CornerRadius="13">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Shield}" Width="19" Height="19" Foreground="{DynamicResource AeroSkyInkBrush}" />
+            </Border>
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="OpenMG Secure Module Required" FontSize="17.5" FontWeight="Bold" />
+                <Border Classes="wip-badge">
+                  <TextBlock Text="0x0001" Classes="wip-badge-text" />
+                </Border>
+              </StackPanel>
+              <TextBlock Text="Apollo never bundles or downloads proprietary Sony DLLs." FontSize="11.5" Foreground="{DynamicResource AeroMutedBrush}" />
+            </StackPanel>
+            <Button Grid.Column="3"
+                    Classes="glass-clear"
+                    Width="28"
+                    Height="28"
+                    CornerRadius="14"
+                    Padding="0"
+                    Command="{Binding DismissOpenMgRuntimePromptCommand}"
+                    ToolTip.Tip="Close">
+              <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Close}" Width="11" Height="11" StrokeThickness="2.1" />
+            </Button>
+          </Grid>
+
+          <Border Classes="metal-well" Padding="14,12">
+            <TextBlock Text="{Binding OpenMgRuntimePromptMessage}"
+                       FontSize="12.5"
+                       LineHeight="18"
+                       Foreground="{DynamicResource AeroInkBrush}"
+                       TextWrapping="Wrap" />
+          </Border>
+
+          <StackPanel Spacing="8">
+            <Button Classes="metal-button under-glow-blue"
+                    Command="{Binding LocateOpenMgInstallerCommand}"
+                    Height="38"
+                    CornerRadius="14"
+                    HorizontalAlignment="Stretch">
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.FolderOpen}" Width="14" Height="14" />
+                <TextBlock Text="Locate OpenMG / SonicStage Installer..." FontSize="13" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+
+            <Button Classes="glass-clear"
+                    Command="{Binding OpenOpenMgHelpGuideCommand}"
+                    Height="36"
+                    CornerRadius="14"
+                    HorizontalAlignment="Stretch">
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="14" Height="14" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                <TextBlock Text="How to get OpenMG Secure Module" FontSize="12.5" FontWeight="Medium" />
+              </StackPanel>
+            </Button>
+
+            <Grid ColumnDefinitions="*,10,Auto">
+              <Button Grid.Column="0"
+                      Classes="metal-button under-glow-green"
+                      Command="{Binding SwitchToMp3ModeFromOpenMgPromptCommand}"
+                      Height="38"
+                      CornerRadius="14"
+                      HorizontalAlignment="Stretch">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                  <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.Swap}" Width="14" Height="14" />
+                  <TextBlock Text="Switch to MP3 Mode (Zero Sony Software)" FontSize="12.5" FontWeight="Bold" />
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="2"
+                      Classes="glass-clear"
+                      Command="{Binding DismissOpenMgRuntimePromptCommand}"
+                      Content="Cancel"
+                      Height="38"
+                      Padding="16,0"
+                      CornerRadius="14" />
+            </Grid>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- STANDALONE DECOUPLED ONBOARDING OVERLAY (top Z-layer, zero workspace coupling) -->
+    <ctrl:OnboardingOverlayControl x:Name="OnboardingOverlay"
+                                   IsOpen="{Binding IsOnboardingOpen}"
+                                   HasCompletedBefore="{Binding HasCompletedOnboarding}" />
   </Grid>
 </Window>

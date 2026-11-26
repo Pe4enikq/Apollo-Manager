@@ -49,6 +49,7 @@ public enum AudioCodecId : byte
     Mp3 = 0x03,
     LinearPcm = 0x04,
     Wma = 0x05,
+    Atrac1 = 0x10,
     Atrac3PlusLossless = 0x21,
     Atrac3Lossless = 0x22
 }

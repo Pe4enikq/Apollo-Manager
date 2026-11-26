@@ -77,10 +77,14 @@ public sealed class EdgeJogDialControl : Control
     private string? _submenuParentId;
     private int? _lockedBackIndex;
 
+    private static readonly IReadOnlyDictionary<string, float> EmptyHover = new Dictionary<string, float>(0, StringComparer.Ordinal);
     private IReadOnlyList<ComputedRingSector> _sectors = Array.Empty<ComputedRingSector>();
     private AeroSkiaHelpers.RefCountedSectorBatch? _cachedBatch;
     private AeroSkiaHelpers.RefCountedSkImage? _cachedOrbImage;
     private IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> _cachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
+    private readonly Dictionary<(bool IsDark, bool DeviceConnected, string SubmenuKey), (IReadOnlyList<ComputedRingSector> Sectors, IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> Items, AeroSkiaHelpers.RefCountedSectorBatch Batch)> _batchCache = new();
+    private readonly Dictionary<bool, AeroSkiaHelpers.RefCountedSkImage> _orbCache = new();
+    private Window? _hostWindow;
     private DialHoverKind _hoverKind = DialHoverKind.None;
     private string? _hoveredSectorId;
     private IReadOnlyList<string>? _tooltipCategories;
@@ -102,12 +106,13 @@ public sealed class EdgeJogDialControl : Control
     {
         IsOpenProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) => c.OnIsOpenChanged());
         DeviceConnectedProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) => c.RebuildSectors());
-        ActiveModuleIdProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) => c.BakeSectorImagesOnly());
+        ActiveModuleIdProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) => c.InvalidateVisual());
         IsDarkProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) =>
         {
             c.BakeOrbImage();
             c.BakeSectorImagesOnly();
         });
+        IsVisibleProperty.Changed.AddClassHandler<EdgeJogDialControl>((c, _) => c.StartAnimationIfNeeded());
     }
 
     public void SnapOpenForCapture(bool open, string? hoveredSectorId = null, string? submenuParentId = null)
@@ -158,6 +163,11 @@ public sealed class EdgeJogDialControl : Control
     {
         base.OnAttachedToVisualTree(e);
         _isAttached = true;
+        _hostWindow = TopLevel.GetTopLevel(this) as Window;
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged += OnHostWindowPropertyChanged;
+        }
         if (_cachedOrbImage is null)
         {
             BakeOrbImage();
@@ -172,12 +182,33 @@ public sealed class EdgeJogDialControl : Control
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _isAttached = false;
-        _cachedBatch?.Release();
+        if (_hostWindow is not null)
+        {
+            _hostWindow.PropertyChanged -= OnHostWindowPropertyChanged;
+            _hostWindow = null;
+        }
         _cachedBatch = null;
-        _cachedOrbImage?.Release();
         _cachedOrbImage = null;
         _cachedSectors = Array.Empty<AeroSkiaHelpers.CachedSectorItem>();
+        foreach (var entry in _batchCache.Values)
+        {
+            entry.Batch.Release();
+        }
+        _batchCache.Clear();
+        foreach (var orb in _orbCache.Values)
+        {
+            orb.Release();
+        }
+        _orbCache.Clear();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnHostWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Window.WindowStateProperty)
+        {
+            StartAnimationIfNeeded();
+        }
     }
 
     private void BakeOrbImage()
@@ -186,7 +217,12 @@ public sealed class EdgeJogDialControl : Control
         {
             return;
         }
-        _cachedOrbImage?.Release();
+        if (_orbCache.TryGetValue(IsDark, out var cachedOrb))
+        {
+            _cachedOrbImage = cachedOrb;
+            InvalidateVisual();
+            return;
+        }
         const float ss = 2f;
         float logicalSize = (DialRadius + OrbPad) * 2f;
         int pxSize = (int)(logicalSize * ss);
@@ -221,7 +257,9 @@ public sealed class EdgeJogDialControl : Control
         }
 
         AeroSkiaHelpers.ApplyTriangularDither(bmp, 0.95f);
-        _cachedOrbImage = new AeroSkiaHelpers.RefCountedSkImage(SKImage.FromBitmap(bmp));
+        var holder = new AeroSkiaHelpers.RefCountedSkImage(SKImage.FromBitmap(bmp));
+        _orbCache[IsDark] = holder;
+        _cachedOrbImage = holder;
     }
 
     private void OnIsOpenChanged()
@@ -248,6 +286,39 @@ public sealed class EdgeJogDialControl : Control
 
     private void RebuildSectors()
     {
+        if (!_isAttached)
+        {
+            var (itemsPreview, _) = ModuleRegistry.ResolveActiveRingModules(
+                ModuleRegistry.DefaultModules,
+                RingSurface.JogDial,
+                DeviceConnected,
+                _submenuParentId,
+                _lockedBackIndex);
+
+            _sectors = ModuleRegistry.ComputeJogDialFanSectors(
+                itemsPreview,
+                ExpandedCenterX,
+                ExpandedCenterY,
+                innerRadius: DialRadius + 24,
+                thicknessScale: 1.24,
+                minAngleDeg: -72,
+                maxAngleDeg: 58,
+                gapDeg: 4.0,
+                cornerRadius: 17);
+            return;
+        }
+
+        string submenuKey = $"{_submenuParentId ?? string.Empty}|{_lockedBackIndex?.ToString() ?? ""}";
+        var key = (IsDark, DeviceConnected, submenuKey);
+        if (_batchCache.TryGetValue(key, out var cached))
+        {
+            _sectors = cached.Sectors;
+            _cachedSectors = cached.Items;
+            _cachedBatch = cached.Batch;
+            InvalidateVisual();
+            return;
+        }
+
         var (items, _) = ModuleRegistry.ResolveActiveRingModules(
             ModuleRegistry.DefaultModules,
             RingSurface.JogDial,
@@ -275,16 +346,27 @@ public sealed class EdgeJogDialControl : Control
         {
             return;
         }
-        _cachedBatch?.Release();
+        string submenuKey = $"{_submenuParentId ?? string.Empty}|{_lockedBackIndex?.ToString() ?? ""}";
+        var key = (IsDark, DeviceConnected, submenuKey);
+        if (_batchCache.TryGetValue(key, out var hit))
+        {
+            _sectors = hit.Sectors;
+            _cachedSectors = hit.Items;
+            _cachedBatch = hit.Batch;
+            InvalidateVisual();
+            return;
+        }
+
         _cachedSectors = AeroSkiaHelpers.BakeSectorCache(
             _sectors,
             ExpandedCenterX,
             ExpandedCenterY,
             IsDark,
-            m => IsSectorActive(m, ActiveModuleId),
+            isActiveSelector: null,
             glassOpacityBoost: 1.24f,
             bakeRotatedLabel: true);
         _cachedBatch = new AeroSkiaHelpers.RefCountedSectorBatch(_cachedSectors);
+        _batchCache[key] = (_sectors, _cachedSectors, _cachedBatch);
         InvalidateVisual();
     }
 
@@ -312,6 +394,11 @@ public sealed class EdgeJogDialControl : Control
 
     private bool NeedsAnimation()
     {
+        if (!IsVisible || _hostWindow?.WindowState == WindowState.Minimized)
+        {
+            return false;
+        }
+
         double openTarget = IsOpen ? 1.0 : 0.0;
         double swapTarget = _pendingSwap ? 0.0 : 1.0;
         float orbTarget = _hoverKind is DialHoverKind.CollapsedTab or DialHoverKind.HomeHalf or DialHoverKind.HideHalf ? 1f : 0f;
@@ -525,9 +612,10 @@ public sealed class EdgeJogDialControl : Control
     private (DialHoverKind Kind, ComputedRingSector? Sector) HitTest(Point pt)
     {
         double cy = Bounds.Height * 0.5;
+        float cx = Math.Max(0f, (float)_openT * ExpandedCenterX);
         if (!IsOpen)
         {
-            if (_openT <= 0.05 && AeroSkiaHelpers.Hypot((float)pt.X, (float)(pt.Y - cy)) <= DialRadius + 4f)
+            if (AeroSkiaHelpers.Hypot((float)pt.X - cx, (float)(pt.Y - cy)) <= DialRadius + 6f)
             {
                 return (DialHoverKind.CollapsedTab, null);
             }
@@ -535,10 +623,10 @@ public sealed class EdgeJogDialControl : Control
             return (DialHoverKind.None, null);
         }
 
-        float distDial = AeroSkiaHelpers.Hypot((float)pt.X - ExpandedCenterX, (float)(pt.Y - cy));
-        if (distDial <= DialRadius)
+        float distDial = AeroSkiaHelpers.Hypot((float)pt.X - cx, (float)(pt.Y - cy));
+        if (distDial <= DialRadius + 2f)
         {
-            return pt.X < ExpandedCenterX ? (DialHoverKind.HomeHalf, null) : (DialHoverKind.HideHalf, null);
+            return pt.X < cx ? (DialHoverKind.HomeHalf, null) : (DialHoverKind.HideHalf, null);
         }
 
         if (!_pendingSwap && _fanSwapT > 0.35)
@@ -584,7 +672,9 @@ public sealed class EdgeJogDialControl : Control
             orbHolder = null;
         }
 
-        var hoverSnapshot = new Dictionary<string, float>(_hoverT, StringComparer.Ordinal);
+        IReadOnlyDictionary<string, float> hoverSnapshot = _hoverT.Count == 0
+            ? EmptyHover
+            : new Dictionary<string, float>(_hoverT, StringComparer.Ordinal);
         context.Custom(new JogDialDrawOp(
             new Rect(Bounds.Size),
             IsOpen,
@@ -615,11 +705,12 @@ public sealed class EdgeJogDialControl : Control
         IReadOnlyList<AeroSkiaHelpers.CachedSectorItem> cachedSectors,
         AeroSkiaHelpers.RefCountedSkImage? orbHolder,
         SKImage? orbImage,
-        Dictionary<string, float> hoverValues,
+        IReadOnlyDictionary<string, float> hoverValues,
         DialHoverKind hoverKind,
         float orbHoverT,
         IReadOnlyList<string>? tooltipCategories) : ICustomDrawOperation
     {
+        private static readonly SKMaskFilter TooltipShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 9f);
         private AeroSkiaHelpers.RefCountedSectorBatch? _sectorBatch = sectorBatch;
         private AeroSkiaHelpers.RefCountedSkImage? _orbHolder = orbHolder;
 
@@ -741,7 +832,7 @@ public sealed class EdgeJogDialControl : Control
                         using var lblPaint = new SKPaint
                         {
                             IsAntialias = true,
-                            FilterQuality = SKFilterQuality.High,
+                            FilterQuality = SKFilterQuality.Medium,
                             Color = new SKColor(255, 255, 255, (byte)Math.Round(255 * fanT))
                         };
                         var lblRect = new SKRect(
@@ -777,7 +868,7 @@ public sealed class EdgeJogDialControl : Control
             if (orbImage is not null)
             {
                 float half = DialRadius + OrbPad;
-                using var imgPaint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High };
+                using var imgPaint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.Medium };
                 canvas.DrawImage(orbImage, new SKRect(cx - half, cy - half, cx + half, cy + half), imgPaint);
             }
 
@@ -940,12 +1031,11 @@ public sealed class EdgeJogDialControl : Control
             float y = Math.Clamp(anchorY, 12f, ExpandedHeight - boxH - 12f);
 
             var rect = new SKRoundRect(new SKRect(x, y, x + boxW, y + boxH), 11f, 11f);
-            using (var shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 9f))
             using (var shadow = new SKPaint
             {
                 IsAntialias = true,
                 Color = isDark ? new SKColor(0, 0, 0, 120) : new SKColor(38, 66, 94, 42),
-                MaskFilter = shadowBlur
+                MaskFilter = TooltipShadowBlur
             })
             {
                 canvas.DrawRoundRect(rect, shadow);

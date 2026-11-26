@@ -35,4 +35,12 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Walkman.M0.Tests" />
   </ItemGroup>
+
+  <Target Name="StageOpenMgIcvWorker"
+          AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' And '$(StageOpenMgIcvWorker)' == 'true'"
+          Inputs="..\..\Tools\Walkman.OpenMgIcvWorker\Program.cs;..\..\Tools\Walkman.OpenMgIcvWorker\Walkman.OpenMgIcvWorker.csproj"
+          Outputs="$(OutDir)tools\openmg-icv-worker\Walkman.OpenMgIcvWorker.exe">
+    <Exec Command="dotnet publish &quot;..\..\Tools\Walkman.OpenMgIcvWorker\Walkman.OpenMgIcvWorker.csproj&quot; -c $(Configuration) -r win-x86 --self-contained true -o &quot;$(OutDir)tools\openmg-icv-worker&quot; /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true /p:DebugType=None /p:DebugSymbols=false --nologo -v:q" />
+  </Target>
 </Project>

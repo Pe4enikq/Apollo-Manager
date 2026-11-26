@@ -11,6 +11,9 @@ namespace Walkman.L3.AppShell.Views;
 
 public partial class FileManagerView : UserControl
 {
+    private Point? _sourceDragStartPoint;
+    private AudioTrackItem? _sourceDragTrack;
+    private bool _sourceDragStarted;
     private Point? _destDragStartPoint;
     private AudioTrackItem? _destDragTrack;
     private bool _destDragStarted;
@@ -32,6 +35,7 @@ public partial class FileManagerView : UserControl
         DestListBox.AddHandler(DragDrop.DragOverEvent, OnDestDragOver);
         DestListBox.AddHandler(DragDrop.DragLeaveEvent, OnDestDragLeave);
         DestListBox.AddHandler(DragDrop.DropEvent, OnDestDrop);
+        DestListBox.AddHandler(PointerPressedEvent, OnDestFolderHeaderTunnelPressed, RoutingStrategies.Tunnel);
     }
 
     private void SetDropTargetEntry(TrackListEntry? entry, bool isFolderOver = false)
@@ -228,18 +232,60 @@ public partial class FileManagerView : UserControl
             {
                 vm.SelectTrackRange(vm.FileManagerSourceEntries, _lastClickedSourceTrack, track, isDestSelection: false, targetState: true);
                 _lastClickedSourceTrack = track;
+                _sourceDragTrack = null;
+                _sourceDragStartPoint = null;
                 e.Handled = true;
                 return;
             }
 
+            _sourceDragStartPoint = e.GetPosition(this);
+            _sourceDragTrack = track;
+            _sourceDragStarted = false;
+        }
+    }
+
+    private void OnSourceRowPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_sourceDragTrack is null || _sourceDragStartPoint is null || _sourceDragStarted)
+        {
+            return;
+        }
+
+        if (DataContext is MainWindowViewModel { IsTransferRunning: true } ||
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            _sourceDragTrack = null;
+            _sourceDragStartPoint = null;
+            return;
+        }
+
+        var delta = e.GetPosition(this) - _sourceDragStartPoint.Value;
+        if (Math.Abs(delta.X) < 6 && Math.Abs(delta.Y) < 6)
+        {
+            return;
+        }
+
+        _sourceDragStarted = true;
+#pragma warning disable CS0618
+        var data = new DataObject();
+        data.Set("ApolloTrackId", _sourceDragTrack.Id);
+        _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Copy);
+#pragma warning restore CS0618
+        _sourceDragTrack = null;
+        _sourceDragStartPoint = null;
+    }
+
+    private void OnSourceRowPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_sourceDragTrack is { } track && !_sourceDragStarted && DataContext is MainWindowViewModel vm)
+        {
             _lastClickedSourceTrack = track;
             vm.ToggleTrackSelectionAndRefresh(track);
-#pragma warning disable CS0618
-            var data = new DataObject();
-            data.Set("ApolloTrackId", track.Id);
-            _ = DragDrop.DoDragDrop(e, data, DragDropEffects.Copy);
-#pragma warning restore CS0618
         }
+
+        _sourceDragTrack = null;
+        _sourceDragStartPoint = null;
+        _sourceDragStarted = false;
     }
 
     private void OnSourceCheckBoxClicked(object? sender, RoutedEventArgs e)
@@ -389,6 +435,23 @@ public partial class FileManagerView : UserControl
         if (sender is Control ctrl && DataContext is MainWindowViewModel vm)
         {
             ViewInteractionHelpers.ToggleFolderPreservingScroll(ctrl, vm);
+        }
+    }
+
+    private void OnDestFolderHeaderTunnelPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed ||
+            DataContext is MainWindowViewModel { IsTransferRunning: true })
+        {
+            return;
+        }
+
+        if (e.Source is Visual v &&
+            v.FindAncestorOfType<Button>(includeSelf: true) is { DataContext: TrackListEntry { IsHeader: true, HeaderTitle: { Length: > 0 } name } })
+        {
+            _destFolderDragStartPoint = e.GetPosition(this);
+            _destFolderDragName = name;
+            _destFolderDragStarted = false;
         }
     }
 

@@ -14,11 +14,11 @@ public sealed class MilestoneM50ReleasePackagingTests
     {
         Assembly asm = typeof(App).Assembly;
         Assert.Equal("Apollo Manager", asm.GetName().Name);
-        Assert.Equal(new Version(0, 1, 0, 0), asm.GetName().Version);
+        Assert.Equal(new Version(0, 1, 1, 0), asm.GetName().Version);
 
         string? infoVer = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         Assert.NotNull(infoVer);
-        Assert.StartsWith("0.1.0-beta.1", infoVer, StringComparison.Ordinal);
+        Assert.StartsWith("0.1.1b", infoVer, StringComparison.Ordinal);
 
         string? product = asm.GetCustomAttribute<AssemblyProductAttribute>()?.Product;
         Assert.Equal("Apollo Manager", product);

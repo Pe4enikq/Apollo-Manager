@@ -277,7 +277,8 @@ public sealed record NwmProjectDto(
     int Height,
     int BitsPerPixel,
     IReadOnlyList<NwmFrameEntry> Timeline,
-    IReadOnlyList<byte[]> UniqueBitmaps);
+    IReadOnlyList<byte[]> UniqueBitmaps,
+    byte[]? Thumbnail = null);
 
 /// <summary>
 /// Firmware ceiling and geometry validation result for a .nwm project.
@@ -285,7 +286,8 @@ public sealed record NwmProjectDto(
 public sealed record NwmValidationResult(
     bool IsValid,
     int EstimatedByteSize,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors,
+    IReadOnlyList<string>? Warnings = null);
 
 /// <summary>
 /// Privacy-safe diagnostic collection parameters for unrecognized Sony hardware.

@@ -104,6 +104,10 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
 
                 omaBytes = await BuildMp3OmaAsync(request, crypto, tempDir, ct).ConfigureAwait(false);
             }
+            else if (request.TargetCodec == AudioCodecId.Atrac1)
+            {
+                return await BuildAtrac1Async(request, tempDir, ct).ConfigureAwait(false);
+            }
             else if (request.TargetCodec == AudioCodecId.Atrac3)
             {
                 var (wrapped, frameCount) = await BuildAtrac3OmaAsync(request, crypto, tempDir, ct).ConfigureAwait(false);
@@ -114,7 +118,7 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
             }
             else if (request.TargetCodec == AudioCodecId.Atrac3Plus)
             {
-                var (wrapped, frameCount) = BuildAtrac3PlusOma(request, crypto, tempDir, ct);
+                var (wrapped, frameCount) = await BuildAtrac3PlusOmaAsync(request, crypto, tempDir, ct).ConfigureAwait(false);
                 omaBytes = wrapped.OmaBytes;
                 lsiKeyring48 = wrapped.LsiKeyring48;
                 maclistEntry8 = wrapped.MaclistEntry8;
@@ -373,15 +377,58 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
         }
 
         var crypto = _cryptoResolver();
-        byte[] omaBytes = await File.ReadAllBytesAsync(sourceOmaPath, ct).ConfigureAwait(false);
-        var header = crypto.ParseHeader(omaBytes);
-
+        string srcExt = Path.GetExtension(sourceOmaPath).ToLowerInvariant();
         string outExt = Path.GetExtension(outputFilePath).ToLowerInvariant();
         string tempDir = Path.Combine(Path.GetTempPath(), $"apollo_extract_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
 
         try
         {
+            // Non-EA3 Sony/game/niche formats (.at3, .at9, .aea, .wv, .ape): decode via atracdenc (.aea) or vgmstream.
+            if (srcExt is ".at3" or ".at9" or ".aea" or ".wv" or ".ape")
+            {
+                string decodedWav = Path.Combine(tempDir, "ext_out.wav");
+                if (srcExt == ".aea")
+                {
+                    string atracdencExe = ExternalCodecToolRunner.ResolveToolExecutable("atracdenc", "atracdenc.exe");
+                    await ExternalCodecToolRunner.RunProcessAsync(atracdencExe, ["-d", "-i", sourceOmaPath, "-o", decodedWav], ct)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    try
+                    {
+                        string vgmCli = ExternalCodecToolRunner.ResolveToolExecutable("vgmstream", "vgmstream-cli.exe");
+                        await ExternalCodecToolRunner.RunProcessAsync(vgmCli, ["-o", decodedWav, sourceOmaPath], ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        AudioResamplerPipeline.DecodeTo44100StereoWav(sourceOmaPath, decodedWav, ct);
+                    }
+                }
+
+                if (!File.Exists(decodedWav))
+                {
+                    return false;
+                }
+
+                if (outExt == ".mp3")
+                {
+                    string encodedMp3 = Path.Combine(tempDir, "reencoded.mp3");
+                    AudioResamplerPipeline.ConvertWavToMp3File(decodedWav, encodedMp3, 192, ct);
+                    byte[] mp3Bytes = await File.ReadAllBytesAsync(encodedMp3, ct).ConfigureAwait(false);
+                    await WriteStagedFileAtomicAsync(outputFilePath, mp3Bytes, ct).ConfigureAwait(false);
+                    return true;
+                }
+
+                byte[] wavOut = await File.ReadAllBytesAsync(decodedWav, ct).ConfigureAwait(false);
+                await WriteStagedFileAtomicAsync(outputFilePath, wavOut, ct).ConfigureAwait(false);
+                return true;
+            }
+
+            byte[] omaBytes = await File.ReadAllBytesAsync(sourceOmaPath, ct).ConfigureAwait(false);
+            var header = crypto.ParseHeader(omaBytes);
             if (header.CodecId == AudioCodecId.Mp3)
             {
                 int trackId = TryParseTrackIdFromPath(sourceOmaPath) ?? 1;
@@ -585,6 +632,30 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
             request.Ea3BlockSize);
     }
 
+    private static async Task<TranscodeResult> BuildAtrac1Async(
+        TranscodeRequest request,
+        string tempDir,
+        CancellationToken ct)
+    {
+        string normalizedWav = Path.Combine(tempDir, "pcm44k_at1.wav");
+        AudioResamplerPipeline.DecodeTo44100StereoWav(request.SourceFilePath, normalizedWav, ct);
+
+        string atracdencExe = ExternalCodecToolRunner.ResolveToolExecutable("atracdenc", "atracdenc.exe");
+        string aeaPath = Path.Combine(tempDir, "atrac1_sp.aea");
+        await ExternalCodecToolRunner.RunProcessAsync(atracdencExe, ["-e", "atrac1", "-i", normalizedWav, "-o", aeaPath], ct)
+            .ConfigureAwait(false);
+
+        byte[] aeaBytes = await File.ReadAllBytesAsync(aeaPath, ct).ConfigureAwait(false);
+        await WriteStagedFileAtomicAsync(request.StagingOutputPath, aeaBytes, ct).ConfigureAwait(false);
+
+        uint frameCount = aeaBytes.Length > 2048 ? (uint)((aeaBytes.Length - 2048) / 424) : 0u;
+        uint durationMs = request.Tags.DurationMs > 0
+            ? request.Tags.DurationMs
+            : (uint)Math.Round(frameCount * 512.0 * 1000.0 / 44100.0, MidpointRounding.AwayFromZero);
+
+        return new TranscodeResult(true, request.StagingOutputPath, durationMs, frameCount, 0x00000000u, null);
+    }
+
     private static async Task<(MagicGate0x0001WrapResult Wrapped, uint FrameCount)> BuildAtrac3OmaAsync(
         TranscodeRequest request,
         IOpenMgCryptoService crypto,
@@ -597,11 +668,10 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
         string atracdencExe = ExternalCodecToolRunner.ResolveToolExecutable("atracdenc", "atracdenc.exe");
         string rawOmaPath = Path.Combine(tempDir, "atrac3_raw.oma");
 
-        var args = new List<string> { "-e", "atrac3" };
-        if (request.TargetBitrateKbps is > 0 and < 132)
-        {
-            args.Add($"--bitrate={request.TargetBitrateKbps}");
-        }
+        // atracdenc v0.2.3: "-e atrac3_lp4" emits exact Sony 66k LP4 (00 02 20 18, 192 B/frame);
+        // "-e atrac3" (without --bitrate, which is RealMedia-only) emits exact Sony 132k LP2 (00 00 20 30, 384 B/frame).
+        string encoderMode = request.TargetBitrateKbps is > 0 and <= 70 ? "atrac3_lp4" : "atrac3";
+        var args = new List<string> { "-e", encoderMode };
 
         args.Add("-i");
         args.Add(normalizedWav);
@@ -658,20 +728,86 @@ public sealed class CodecPipelineService : ICodecService, IAudioStreamDecoder
         return (wrapped, frameCount);
     }
 
-    private static (MagicGate0x0001WrapResult Wrapped, uint FrameCount) BuildAtrac3PlusOma(
+    private async Task<(MagicGate0x0001WrapResult Wrapped, uint FrameCount)> BuildAtrac3PlusOmaAsync(
         TranscodeRequest request,
         IOpenMgCryptoService crypto,
         string tempDir,
         CancellationToken ct)
     {
-        string normalizedWav = Path.Combine(tempDir, "pcm44k_atp.wav");
-        AudioResamplerPipeline.DecodeTo44100StereoWav(request.SourceFilePath, normalizedWav, ct);
-
-        var encoded = Atrac3PlusEncoder.EncodeWavFile(normalizedWav, request.TargetBitrateKbps, ct);
-        uint durationMs = request.Tags.DurationMs > 0 ? request.Tags.DurationMs : encoded.DurationMs;
         int ea3Size = request.EncryptionMode == OmaEncryptionMode.MagicGateLsi_0x0001
             ? Math.Max(2048, request.Ea3BlockSize)
             : request.Ea3BlockSize;
+
+        // COD-30: Direct lossless re-wrap for pre-encoded ATRAC3plus .oma/.aa3/.omg files (e.g. 192 kbps 01 00 28 8B).
+        string srcExt = Path.GetExtension(request.SourceFilePath).ToLowerInvariant();
+        if (srcExt is ".oma" or ".aa3" or ".omg")
+        {
+            byte[] srcBytes = await File.ReadAllBytesAsync(request.SourceFilePath, ct).ConfigureAwait(false);
+            var srcHdr = crypto.ParseHeader(srcBytes);
+            if (srcHdr.CodecId == AudioCodecId.Atrac3Plus)
+            {
+                int srcFrameBytes = ((int)(srcHdr.CodecParams24 & 0x3FF) + 1) * 8;
+                int srcKbps = (int)Math.Round(srcFrameBytes * 172.265625 / 1000.0);
+                if (request.TargetBitrateKbps <= 0 || Math.Abs(srcKbps - request.TargetBitrateKbps) <= 12)
+                {
+                    int srcTrackId = TryParseTrackIdFromPath(request.SourceFilePath) ?? 1;
+                    byte[]? ekb = request.DeviceEkb00010021Bytes ?? TryLoadAncestorEkb00010021(request.SourceFilePath);
+                    byte[] rawFrames = srcHdr.EncryptionId == OmaEncryptionMode.Unprotected_0xFFFF
+                        ? srcBytes.AsSpan(srcHdr.AudioPayloadOffset).ToArray()
+                        : crypto.DecryptOmaPayload(srcBytes, srcTrackId, request.HardwareDeviceKey, ekb);
+
+                    uint passDurMs = request.Tags.DurationMs > 0 ? request.Tags.DurationMs : srcHdr.DurationMs;
+                    uint passFrames = srcHdr.FrameCount > 0
+                        ? srcHdr.FrameCount
+                        : (srcFrameBytes > 0 ? (uint)(rawFrames.Length / srcFrameBytes) : 0u);
+                    var passTags = request.Tags with { DurationMs = passDurMs };
+
+                    var passWrapped = request.EncryptionMode == OmaEncryptionMode.MagicGateLsi_0x0001 &&
+                                      request.RecycledMagicGateSlot is not null
+                        ? crypto.WrapAtracIntoSignedSlot(
+                            rawFrames,
+                            AudioCodecId.Atrac3Plus,
+                            srcHdr.CodecParams24,
+                            passDurMs,
+                            passFrames,
+                            request.RecycledMagicGateSlot,
+                            passTags,
+                            request.DeviceEkb00010021Bytes ?? ReadOnlySpan<byte>.Empty,
+                            ea3Size)
+                        : crypto.WrapAtracToOma(
+                            rawFrames,
+                            AudioCodecId.Atrac3Plus,
+                            srcHdr.CodecParams24,
+                            passDurMs,
+                            passFrames,
+                            request.TrackId,
+                            request.HardwareDeviceKey,
+                            request.EncryptionMode,
+                            passTags,
+                            ea3Size,
+                            ekb00010021Bytes: request.DeviceEkb00010021Bytes ?? ReadOnlySpan<byte>.Empty);
+
+                    return (passWrapped, passFrames);
+                }
+            }
+        }
+
+        string normalizedWav = Path.Combine(tempDir, "pcm44k_atp.wav");
+        if (srcExt is ".oma" or ".aa3" or ".omg")
+        {
+            bool extracted = await ExtractFromOmaAsync(request.SourceFilePath, normalizedWav, request.HardwareDeviceKey, ct).ConfigureAwait(false);
+            if (!extracted)
+            {
+                AudioResamplerPipeline.DecodeTo44100StereoWav(request.SourceFilePath, normalizedWav, ct);
+            }
+        }
+        else
+        {
+            AudioResamplerPipeline.DecodeTo44100StereoWav(request.SourceFilePath, normalizedWav, ct);
+        }
+
+        var encoded = Atrac3PlusEncoder.EncodeWavFile(normalizedWav, request.TargetBitrateKbps, ct);
+        uint durationMs = request.Tags.DurationMs > 0 ? request.Tags.DurationMs : encoded.DurationMs;
 
         var tagsWithDuration = request.Tags with { DurationMs = durationMs };
         var wrapped = request.EncryptionMode == OmaEncryptionMode.MagicGateLsi_0x0001 &&

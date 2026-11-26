@@ -36,7 +36,8 @@ public sealed record AppUserSettings(
     bool FmNormalizeVolume = true,
     bool FmRewriteTables = false,
     bool FmRewriteLock = false,
-    bool FmSafeEjectAfter = false);
+    bool FmSafeEjectAfter = false,
+    bool HasCompletedOnboarding = false);
 
 /// <summary>
 /// Reads and writes <see cref="AppUserSettings"/> to JSON in LocalApplicationData.

@@ -50,6 +50,14 @@ public sealed partial class MainWindowViewModel
     public bool ConvAtracBlue => IsBlue(IsTargetAtrac3Plus, IsConvCodecLocked);
     public double ConvAtracOpacity => DimOpacity(IsTargetAtrac3Plus, IsConvCodecLocked);
 
+    public bool ConvAtrac3Green => IsGreen(IsTargetAtrac3, IsConvCodecLocked);
+    public bool ConvAtrac3Blue => IsBlue(IsTargetAtrac3, IsConvCodecLocked);
+    public double ConvAtrac3Opacity => DimOpacity(IsTargetAtrac3, IsConvCodecLocked);
+
+    public bool ConvAtrac1Green => IsGreen(IsTargetAtrac1, IsConvCodecLocked);
+    public bool ConvAtrac1Blue => IsBlue(IsTargetAtrac1, IsConvCodecLocked);
+    public double ConvAtrac1Opacity => DimOpacity(IsTargetAtrac1, IsConvCodecLocked);
+
     public bool ConvMp3Green => IsGreen(IsTargetMp3, IsConvCodecLocked);
     public bool ConvMp3Blue => IsBlue(IsTargetMp3, IsConvCodecLocked);
     public double ConvMp3Opacity => DimOpacity(IsTargetMp3, IsConvCodecLocked);
@@ -74,6 +82,10 @@ public sealed partial class MainWindowViewModel
     public bool Conv352Blue => IsBlue(IsBitrate352, IsConvBitrateLocked);
     public double Conv352Opacity => DimOpacity(IsBitrate352, IsConvBitrateLocked);
 
+    public bool Conv292Green => IsGreen(IsBitrate292, IsConvBitrateLocked);
+    public bool Conv292Blue => IsBlue(IsBitrate292, IsConvBitrateLocked);
+    public double Conv292Opacity => DimOpacity(IsBitrate292, IsConvBitrateLocked);
+
     public bool Conv256Green => IsGreen(IsBitrate256, IsConvBitrateLocked);
     public bool Conv256Blue => IsBlue(IsBitrate256, IsConvBitrateLocked);
     public double Conv256Opacity => DimOpacity(IsBitrate256, IsConvBitrateLocked);
@@ -82,9 +94,21 @@ public sealed partial class MainWindowViewModel
     public bool Conv192Blue => IsBlue(IsBitrate192, IsConvBitrateLocked);
     public double Conv192Opacity => DimOpacity(IsBitrate192, IsConvBitrateLocked);
 
+    public bool Conv132Green => IsGreen(IsBitrate132, IsConvBitrateLocked);
+    public bool Conv132Blue => IsBlue(IsBitrate132, IsConvBitrateLocked);
+    public double Conv132Opacity => DimOpacity(IsBitrate132, IsConvBitrateLocked);
+
     public bool Conv128Green => IsGreen(IsBitrate128, IsConvBitrateLocked);
     public bool Conv128Blue => IsBlue(IsBitrate128, IsConvBitrateLocked);
     public double Conv128Opacity => DimOpacity(IsBitrate128, IsConvBitrateLocked);
+
+    public bool Conv105Green => IsGreen(IsBitrate105, IsConvBitrateLocked);
+    public bool Conv105Blue => IsBlue(IsBitrate105, IsConvBitrateLocked);
+    public double Conv105Opacity => DimOpacity(IsBitrate105, IsConvBitrateLocked);
+
+    public bool Conv66Green => IsGreen(IsBitrate66, IsConvBitrateLocked);
+    public bool Conv66Blue => IsBlue(IsBitrate66, IsConvBitrateLocked);
+    public double Conv66Opacity => DimOpacity(IsBitrate66, IsConvBitrateLocked);
 
     public bool Conv441Green => IsGreen(IsRate44100, IsConvRateLocked);
     public bool Conv441Blue => IsBlue(IsRate44100, IsConvRateLocked);
@@ -116,8 +140,15 @@ public sealed partial class MainWindowViewModel
 
     // Transfer Job Dock Computed Text
     public string TransferJobProgressText => TransferJob is null ? string.Empty : $"{TransferJob.CompletedCount}/{TransferJob.TotalCount} · {TransferJob.ProgressPct}%";
-    public string TransferJobEtaText => TransferJob is null ? string.Empty : (TransferJob.IsCompleted ? "Finished" : $"ETA {AudioTrackItem.FormatDuration(TransferJob.EtaSeconds)}");
-    public string TransferJobStageCodec => TransferJob is null ? string.Empty : $"{TransferJob.StageLabel} · {TransferJob.CodecLabel}";
+    public string TransferJobEtaText => TransferJob is null
+        ? string.Empty
+        : (TransferJob.IsError
+            ? "Failed"
+            : (TransferJob.IsCompleted ? "Finished" : $"ETA {AudioTrackItem.FormatDuration(TransferJob.EtaSeconds)}"));
+    public string TransferJobStageCodec => TransferJob is null
+        ? string.Empty
+        : $"{(TransferJob.IsError ? MainWindowViewModel.SanitizeTransferErrorForDock(TransferJob.StageLabel) : TransferJob.StageLabel)} · {TransferJob.CodecLabel}";
+    public string? TransferJobErrorTooltip => string.IsNullOrWhiteSpace(TransferJob?.ErrorText) ? null : TransferJob.ErrorText;
     public int TransferJobProgressPct => TransferJob?.ProgressPct ?? 0;
 
     partial void OnFmNormalizeVolumeChanged(bool value) => NotifyFmStates();
@@ -145,15 +176,21 @@ public sealed partial class MainWindowViewModel
     private void NotifyConvStates()
     {
         OnPropertyChanged(nameof(ConvAtracGreen)); OnPropertyChanged(nameof(ConvAtracBlue)); OnPropertyChanged(nameof(ConvAtracOpacity));
+        OnPropertyChanged(nameof(ConvAtrac3Green)); OnPropertyChanged(nameof(ConvAtrac3Blue)); OnPropertyChanged(nameof(ConvAtrac3Opacity));
+        OnPropertyChanged(nameof(ConvAtrac1Green)); OnPropertyChanged(nameof(ConvAtrac1Blue)); OnPropertyChanged(nameof(ConvAtrac1Opacity));
         OnPropertyChanged(nameof(ConvMp3Green)); OnPropertyChanged(nameof(ConvMp3Blue)); OnPropertyChanged(nameof(ConvMp3Opacity));
         OnPropertyChanged(nameof(ConvAalGreen)); OnPropertyChanged(nameof(ConvAalBlue)); OnPropertyChanged(nameof(ConvAalOpacity));
         OnPropertyChanged(nameof(ConvAacGreen)); OnPropertyChanged(nameof(ConvAacBlue)); OnPropertyChanged(nameof(ConvAacOpacity));
         OnPropertyChanged(nameof(ConvFlacGreen)); OnPropertyChanged(nameof(ConvFlacBlue)); OnPropertyChanged(nameof(ConvFlacOpacity));
         OnPropertyChanged(nameof(ConvWavGreen)); OnPropertyChanged(nameof(ConvWavBlue)); OnPropertyChanged(nameof(ConvWavOpacity));
         OnPropertyChanged(nameof(Conv352Green)); OnPropertyChanged(nameof(Conv352Blue)); OnPropertyChanged(nameof(Conv352Opacity));
+        OnPropertyChanged(nameof(Conv292Green)); OnPropertyChanged(nameof(Conv292Blue)); OnPropertyChanged(nameof(Conv292Opacity));
         OnPropertyChanged(nameof(Conv256Green)); OnPropertyChanged(nameof(Conv256Blue)); OnPropertyChanged(nameof(Conv256Opacity));
         OnPropertyChanged(nameof(Conv192Green)); OnPropertyChanged(nameof(Conv192Blue)); OnPropertyChanged(nameof(Conv192Opacity));
+        OnPropertyChanged(nameof(Conv132Green)); OnPropertyChanged(nameof(Conv132Blue)); OnPropertyChanged(nameof(Conv132Opacity));
         OnPropertyChanged(nameof(Conv128Green)); OnPropertyChanged(nameof(Conv128Blue)); OnPropertyChanged(nameof(Conv128Opacity));
+        OnPropertyChanged(nameof(Conv105Green)); OnPropertyChanged(nameof(Conv105Blue)); OnPropertyChanged(nameof(Conv105Opacity));
+        OnPropertyChanged(nameof(Conv66Green)); OnPropertyChanged(nameof(Conv66Blue)); OnPropertyChanged(nameof(Conv66Opacity));
         OnPropertyChanged(nameof(Conv441Green)); OnPropertyChanged(nameof(Conv441Blue)); OnPropertyChanged(nameof(Conv441Opacity));
         OnPropertyChanged(nameof(Conv480Green)); OnPropertyChanged(nameof(Conv480Blue)); OnPropertyChanged(nameof(Conv480Opacity));
         OnPropertyChanged(nameof(ConvNormGreen)); OnPropertyChanged(nameof(ConvNormBlue)); OnPropertyChanged(nameof(ConvNormOpacity)); OnPropertyChanged(nameof(ConvNormStateText));

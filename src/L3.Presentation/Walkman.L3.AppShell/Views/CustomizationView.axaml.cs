@@ -14,7 +14,11 @@ public partial class CustomizationView : UserControl
         ViewInteractionHelpers.AttachSearchFocus(
             this,
             SubSearchBox,
-            id => id is ModuleIds.Customization or ModuleIds.CustomSubtitles or ModuleIds.CustomTags);
+            id => id == ModuleIds.CustomSubtitles || (id == ModuleIds.Customization && DataContext is MainWindowViewModel { IsCustomSubtitlesTab: true }));
+        ViewInteractionHelpers.AttachSearchFocus(
+            this,
+            TagSearchBox,
+            id => id == ModuleIds.CustomTags || (id == ModuleIds.Customization && DataContext is MainWindowViewModel { IsCustomTagsTab: true }));
     }
 
     private static AudioTrackItem? UnwrapTrack(object? sender) => (sender as Control)?.DataContext switch

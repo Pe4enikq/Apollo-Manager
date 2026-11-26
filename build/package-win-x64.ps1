@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Apollo Manager — Self-Contained Windows x64 Release Packager (0.1.0-beta.1)
+# Apollo Manager — Self-Contained Windows x64 Release Packager (0.1.1b)
 # ==============================================================================
 # Publishes Apollo Manager.exe (--self-contained true -r win-x64) WITHOUT single-file
 # bundling so collectible AssemblyLoadContext plugins and LGPL native libraries stay
@@ -12,10 +12,11 @@
 # ==============================================================================
 [CmdletBinding()]
 param(
-    [string]$Version = "0.1.0-beta.1",
+    [string]$Version = "0.1.1b",
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
-    [switch]$SkipInstaller
+    [switch]$SkipInstaller,
+    [switch]$IncludeIcvWorker
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,7 @@ $CodebaseRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 $DistDir = Join-Path $CodebaseRoot "dist"
 $StageDir = Join-Path $DistDir "stage-$Runtime"
 $PluginsStageDir = Join-Path $StageDir "plugins"
+$SemVer = if ($Version -match '^(\d+\.\d+\.\d+)b$') { "$($Matches[1])-beta.1" } else { $Version }
 
 Write-Host "==> Packaging Apollo Manager $Version ($Configuration / $Runtime)" -ForegroundColor Cyan
 Write-Host "    CodebaseRoot : $CodebaseRoot"
@@ -48,7 +50,8 @@ Write-Host "==> Publishing host: Apollo Manager.exe ..." -ForegroundColor Cyan
     /p:PublishSingleFile=false `
     /p:DebugType=None `
     /p:DebugSymbols=false `
-    /p:Version=$Version
+    /p:Version=$SemVer `
+    /p:InformationalVersion=$Version
 if ($LASTEXITCODE -ne 0) { throw "Host publish failed with exit code $LASTEXITCODE." }
 
 $HostExe = Join-Path $StageDir "Apollo Manager.exe"
@@ -79,7 +82,8 @@ foreach ($relProj in $PluginProjects) {
         -o $pluginOut `
         /p:DebugType=None `
         /p:DebugSymbols=false `
-        /p:Version=$Version
+        /p:Version=$SemVer `
+        /p:InformationalVersion=$Version
     if ($LASTEXITCODE -ne 0) { throw "Plugin publish failed for $pluginName (exit code $LASTEXITCODE)." }
 
     # Remove duplicate Walkman.Contracts.dll so ALC always delegates cleanly to host default context
@@ -112,6 +116,27 @@ New-Item -ItemType Directory -Path $ToolsStage -Force | Out-Null
 Copy-Item -Path (Join-Path $ToolsSrc "LICENSE_BOUNDARY.md") -Destination (Join-Path $ToolsStage "LICENSE_BOUNDARY.md") -Force
 Copy-Item -Path (Join-Path $ToolsSrc "atracdenc") -Destination (Join-Path $ToolsStage "atracdenc") -Recurse -Force
 Copy-Item -Path (Join-Path $ToolsSrc "vgmstream") -Destination (Join-Path $ToolsStage "vgmstream") -Recurse -Force
+
+# 6b. Publish optional 32-bit (win-x86) OpenMG ICV COM bridge worker only when -IncludeIcvWorker is requested (gated for v0.2.0b)
+$IcvWorkerProj = Join-Path $CodebaseRoot "src\Tools\Walkman.OpenMgIcvWorker\Walkman.OpenMgIcvWorker.csproj"
+$IcvWorkerStage = Join-Path $ToolsStage "openmg-icv-worker"
+if ($IncludeIcvWorker -and (Test-Path $IcvWorkerProj)) {
+    Write-Host "==> Publishing 32-bit OpenMG ICV worker: Walkman.OpenMgIcvWorker.exe (win-x86) ..." -ForegroundColor DarkCyan
+    New-Item -ItemType Directory -Path $IcvWorkerStage -Force | Out-Null
+    & dotnet publish $IcvWorkerProj `
+        -c $Configuration `
+        -r win-x86 `
+        --self-contained true `
+        -o $IcvWorkerStage `
+        /p:PublishSingleFile=true `
+        /p:PublishTrimmed=true `
+        /p:IncludeNativeLibrariesForSelfExtract=true `
+        /p:DebugType=None `
+        /p:DebugSymbols=false `
+        /p:Version=$SemVer `
+        /p:InformationalVersion=$Version
+    if ($LASTEXITCODE -ne 0) { throw "Walkman.OpenMgIcvWorker publish failed (exit code $LASTEXITCODE)." }
+}
 
 # 7. Stage root LICENSE & THIRD_PARTY_NOTICES.md
 Copy-Item -Path (Join-Path $CodebaseRoot "LICENSE") -Destination (Join-Path $StageDir "LICENSE") -Force

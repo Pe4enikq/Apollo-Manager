@@ -164,6 +164,26 @@
 
           <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
 
+          <!-- Starting Guide & Walkthrough (UI-17) -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Starting Guide &amp; Walkthrough" FontSize="14" FontWeight="SemiBold" />
+              <TextBlock Text="Reopen the 5-step flash-card tour covering USB pairing, 0x0001 slots, File Manager Update, FAT16 safety, and Dump Wizard." FontSize="12" Foreground="{DynamicResource AeroMutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="metal-button"
+                    CornerRadius="16"
+                    Padding="16,8"
+                    Command="{Binding OpenOnboardingGuideCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <ctrl:StrokeIcon Data="{x:Static ctrl:AeroIcons.InfoCircle}" Width="14" Height="14" Foreground="{DynamicResource AeroSkyInkBrush}" />
+                <TextBlock Text="Open Quick Guide" FontSize="12" FontWeight="SemiBold" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <Border Height="1" Background="{DynamicResource RowDividerBrush}" />
+
           <!-- Post-MVP Chameleon Casing Accent Theme (UI-02) -->
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Spacing="2">

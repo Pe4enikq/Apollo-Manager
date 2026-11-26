@@ -262,6 +262,28 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         }
     }
 
+    public IcvBridgeCapability? ProbeOpenMgIcvBridgeCapability()
+    {
+        var bridge = _orchestrator.TryResolveEngine<IOpenMgIcvBridge>();
+        return bridge?.ProbeCapability();
+    }
+
+    public async Task<IcvCommitResult> AllocateMagicGateSlotsAsync(
+        ConnectedDeviceIdentity device,
+        int slotCount,
+        CancellationToken ct = default)
+    {
+        await _deviceScopeLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await _fileManager.AllocateMagicGateSlotsAsync(device, slotCount, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _deviceScopeLock.Release();
+        }
+    }
+
     public async Task<MagicGateSlotPoolStatus?> RefreshSlotPoolStatusAsync(ConnectedDeviceIdentity identity, CancellationToken ct = default)
     {
         await _deviceScopeLock.WaitAsync(ct).ConfigureAwait(false);
@@ -517,7 +539,12 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         await _deviceScopeLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var transport = _orchestrator.ResolveRequiredEngine<ITransportDriver>();
+            var transport = _orchestrator.TryResolveEngine<ITransportDriver>();
+            if (transport is null)
+            {
+                await _orchestrator.LoadModuleAsync(WellKnownModules.L2TransportMsc, OfflineToolsScopeId, ct).ConfigureAwait(false);
+                transport = _orchestrator.ResolveRequiredEngine<ITransportDriver>();
+            }
             string relPath = $"OMGAUDIO/10F{trackId / 256:X2}/1{trackId:X7}.LRC";
             byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(string.Join(Environment.NewLine, lines));
             await transport.WriteFileAtomicAsync(device, relPath, utf8, ct).ConfigureAwait(false);
@@ -565,13 +592,41 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
                 await BackupOmgaudioTablesAsync(device, backupRootDirectory, ct).ConfigureAwait(false);
             }
 
-            var transport = _orchestrator.ResolveRequiredEngine<ITransportDriver>();
+            var transport = _orchestrator.TryResolveEngine<ITransportDriver>();
+            if (transport is null)
+            {
+                await _orchestrator.LoadModuleAsync(WellKnownModules.L2TransportMsc, OfflineToolsScopeId, ct).ConfigureAwait(false);
+                transport = _orchestrator.ResolveRequiredEngine<ITransportDriver>();
+            }
             string targetDir = await transport.ExistsAsync(device, "NWWM-SCR", ct).ConfigureAwait(false)
                 ? "NWWM-SCR"
                 : "SCREEN";
             string fileName = Sanitize8Dot3NwmFileName(project.Name);
             string relPath = $"{targetDir}/{fileName}";
+
+            // NW-E400/E500 firmware only supports a single custom .nwm screensaver in NWWM-SCR/.
+            // Snapshot prior .nwm files, atomically write the replacement, then remove any other .nwm files.
+            List<string> priorNwmFiles = new();
+            if (await transport.ExistsAsync(device, targetDir, ct).ConfigureAwait(false))
+            {
+                var existingFiles = await transport.ListFilesAsync(device, targetDir, ct).ConfigureAwait(false);
+                foreach (string existing in existingFiles)
+                {
+                    if (existing.EndsWith(".nwm", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(Path.GetFileName(existing), fileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        priorNwmFiles.Add(existing);
+                    }
+                }
+            }
+
             await transport.WriteFileAtomicAsync(device, relPath, nwmBytes, ct).ConfigureAwait(false);
+
+            foreach (string stalePath in priorNwmFiles)
+            {
+                await transport.DeleteFileAsync(device, stalePath, ct).ConfigureAwait(false);
+            }
+
             return (true, relPath, nwmBytes.Length, null);
         }
         finally
@@ -628,6 +683,8 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         var mappedCodec = targetCodec switch
         {
             TargetCodec.Atrac3Plus => AudioCodecId.Atrac3Plus,
+            TargetCodec.Atrac3 => AudioCodecId.Atrac3,
+            TargetCodec.Atrac1 => AudioCodecId.Atrac1,
             TargetCodec.Mp3 => AudioCodecId.Mp3,
             TargetCodec.Wav => AudioCodecId.LinearPcm,
             TargetCodec.Flac => AudioCodecId.LinearPcm,
@@ -675,6 +732,167 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         Bitmap? CoverArtwork,
         bool ProtectedLock);
 
+    public static readonly HashSet<string> SupportedAudioExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".mp3", ".flac", ".wav", ".ogg", ".opus",
+        ".oma", ".aa3", ".omg"
+    };
+
+    private static string ResolveDisplayFormatFromExtension(string ext) => ext.ToLowerInvariant() switch
+    {
+        ".oma" or ".aa3" or ".omg" => "ATRAC3+",
+        ".at3" => "ATRAC3",
+        ".at9" => "ATRAC9",
+        ".aea" => "ATRAC1",
+        ".aif" or ".aiff" => "AIFF",
+        ".wv" => "WAVPACK",
+        ".ape" => "APE",
+        _ => ext.TrimStart('.').ToUpperInvariant()
+    };
+
+    private static (string? Title, string? Artist, string? Album, string? Genre, int Year, int DurationSec, string? Format, string? Bitrate)? TryInspectOmaFile(string filePath)
+    {
+        string ext = Path.GetExtension(filePath);
+        if (!ext.Equals(".oma", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".aa3", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".omg", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var fs = File.OpenRead(filePath);
+            long totalLen = fs.Length;
+            if (totalLen < 96) return null;
+
+            byte[] buf = new byte[Math.Min(totalLen, 16384)];
+            int read = fs.Read(buf, 0, buf.Length);
+            if (read < 96) return null;
+
+            int ea3Offset = 0;
+            string? title = null, artist = null, album = null, genre = null;
+            int year = 0;
+            uint tagDurMs = 0;
+
+            if (buf[0] == (byte)'e' && buf[1] == (byte)'a' && buf[2] == (byte)'3')
+            {
+                int bodySize = ((buf[6] & 0x7F) << 21) | ((buf[7] & 0x7F) << 14) | ((buf[8] & 0x7F) << 7) | (buf[9] & 0x7F);
+                ea3Offset = 10 + bodySize;
+                int pos = 10;
+                int limit = Math.Min(ea3Offset, read);
+                while (pos + 10 <= limit && buf[pos] != 0)
+                {
+                    string fid = System.Text.Encoding.ASCII.GetString(buf, pos, 4);
+                    int fsz = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(buf.AsSpan(pos + 4, 4));
+                    if (fsz <= 0 || pos + 10 + fsz > limit) break;
+                    if (fsz > 1)
+                    {
+                        byte enc = buf[pos + 10];
+                        var slice = buf.AsSpan(pos + 11, fsz - 1);
+                        string val = enc switch
+                        {
+                            0x00 => System.Text.Encoding.Latin1.GetString(slice).TrimEnd('\0').Trim(),
+                            0x02 => System.Text.Encoding.BigEndianUnicode.GetString(slice).TrimEnd('\0').Trim(),
+                            0x03 => System.Text.Encoding.UTF8.GetString(slice).TrimEnd('\0').Trim(),
+                            _ => System.Text.Encoding.BigEndianUnicode.GetString(slice).TrimEnd('\0').Trim()
+                        };
+                        switch (fid)
+                        {
+                            case "TIT2": title = val; break;
+                            case "TPE1": artist = val; break;
+                            case "TALB": album = val; break;
+                            case "TCON": genre = val; break;
+                            case "TYER": if (int.TryParse(val, out int y) && y > 0) year = y; break;
+                            case "TLEN": if (uint.TryParse(val, out uint d) && d > 0) tagDurMs = d; break;
+                        }
+                    }
+                    pos += 10 + fsz;
+                }
+            }
+            else if (buf[0] != (byte)'E' || buf[1] != (byte)'A' || buf[2] != (byte)'3')
+            {
+                return null;
+            }
+
+            if (ea3Offset + 96 > read)
+            {
+                byte[] ea3Only = new byte[96];
+                fs.Position = ea3Offset;
+                if (fs.Read(ea3Only, 0, 96) < 96) return null;
+                buf = ea3Only;
+                ea3Offset = 0;
+            }
+
+            ReadOnlySpan<byte> ea3 = buf.AsSpan(ea3Offset, 96);
+            if (ea3[0] != (byte)'E' || ea3[1] != (byte)'A' || ea3[2] != (byte)'3') return null;
+
+            var codecId = (AudioCodecId)ea3[32];
+            uint p24 = (uint)((ea3[33] << 16) | (ea3[34] << 8) | ea3[35]);
+            uint durMs = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(ea3.Slice(36, 4));
+            uint frames = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(ea3.Slice(40, 4));
+            if (durMs == 0) durMs = tagDurMs;
+
+            string fmt = codecId switch
+            {
+                AudioCodecId.Atrac3 => "ATRAC3",
+                AudioCodecId.Atrac3Plus => "ATRAC3+",
+                AudioCodecId.Mp3 => "MP3",
+                AudioCodecId.Atrac3PlusLossless or AudioCodecId.Atrac3Lossless => "AAL",
+                _ => "ATRAC3+"
+            };
+
+            int kbps = 0;
+            long payloadBytes = Math.Max(0, totalLen - (ea3Offset + 96));
+            if (codecId == AudioCodecId.Atrac3Plus)
+            {
+                int frameBytes = ((int)(p24 & 0x3FF) + 1) * 8;
+                kbps = frameBytes switch
+                {
+                    280 => 48,
+                    376 => 64,
+                    560 => 96,
+                    744 => 128,
+                    936 => 160,
+                    1120 => 192,
+                    1488 => 256,
+                    1864 => 320,
+                    2048 => 352,
+                    _ => frameBytes > 0 ? (int)Math.Round(frameBytes * 172.265625 / 1000.0) : 0
+                };
+                if (durMs == 0 && frameBytes > 0)
+                {
+                    uint f = frames > 0 ? frames : (uint)(payloadBytes / frameBytes);
+                    durMs = (uint)Math.Round(f * 2048.0 * 1000.0 / 44100.0, MidpointRounding.AwayFromZero);
+                }
+            }
+            else if (codecId == AudioCodecId.Atrac3)
+            {
+                int frameBytes = (int)(p24 & 0x3FF) * 8;
+                kbps = frameBytes switch
+                {
+                    192 => 66,
+                    304 => 105,
+                    384 => 132,
+                    _ => frameBytes > 0 ? (int)Math.Round(frameBytes * 344.53125 / 1000.0) : 0
+                };
+                if (durMs == 0 && frameBytes > 0)
+                {
+                    uint f = frames > 0 ? frames : (uint)(payloadBytes / frameBytes);
+                    durMs = (uint)Math.Round(f * 1024.0 * 1000.0 / 44100.0, MidpointRounding.AwayFromZero);
+                }
+            }
+
+            int durSec = durMs > 0 ? Math.Max(1, (int)Math.Round(durMs / 1000.0)) : 1;
+            string? bitrateStr = kbps > 0 ? $"{kbps} kbps" : null;
+            return (title, artist, album, genre, year, durSec, fmt, bitrateStr);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<IReadOnlyList<AudioTrackItem>> ScanLocalFolderTracksIncrementalAsync(
         string folderPath,
         string locationId,
@@ -689,10 +907,7 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         }
 
         int effectiveBatch = Math.Max(4, batchSize);
-        var supportedExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".oma"
-        };
+        var supportedExts = SupportedAudioExtensions;
 
         // Phase 1: Fast file discovery (zero ATL.Track or bitmap decoding)
         var discovered = await Task.Run(() =>
@@ -751,11 +966,7 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
                     try
                     {
                         var info = new FileInfo(file);
-                        string format = ext.TrimStart('.').ToUpperInvariant();
-                        if (format == "OMA")
-                        {
-                            format = "ATRAC3+";
-                        }
+                        string format = ResolveDisplayFormatFromExtension(ext);
 
                         string title = Path.GetFileNameWithoutExtension(file);
                         var item = new AudioTrackItem
@@ -817,15 +1028,24 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
 
                 try
                 {
+                    var omaInfo = TryInspectOmaFile(file);
                     var track = new Track(file);
-                    string title = !string.IsNullOrWhiteSpace(track.Title)
-                        ? track.Title
-                        : Path.GetFileNameWithoutExtension(file);
-                    string artist = !string.IsNullOrWhiteSpace(track.Artist) ? track.Artist : "Unknown Artist";
-                    string album = !string.IsNullOrWhiteSpace(track.Album) ? track.Album : "Local Folder";
-                    int year = track.Year ?? 0;
-                    int durSec = Math.Max(1, track.Duration);
-                    string bitrate = track.Bitrate > 0 ? $"{track.Bitrate} kbps" : item.Format;
+                    string title = !string.IsNullOrWhiteSpace(omaInfo?.Title)
+                        ? omaInfo.Value.Title!
+                        : (!string.IsNullOrWhiteSpace(track.Title)
+                            ? track.Title
+                            : Path.GetFileNameWithoutExtension(file));
+                    string artist = !string.IsNullOrWhiteSpace(omaInfo?.Artist)
+                        ? omaInfo.Value.Artist!
+                        : (!string.IsNullOrWhiteSpace(track.Artist) ? track.Artist : "Unknown Artist");
+                    string album = !string.IsNullOrWhiteSpace(omaInfo?.Album)
+                        ? omaInfo.Value.Album!
+                        : (!string.IsNullOrWhiteSpace(track.Album) ? track.Album : "Local Folder");
+                    int year = omaInfo is { Year: > 0 } ? omaInfo.Value.Year : (track.Year ?? 0);
+                    int durSec = omaInfo is { DurationSec: > 0 } ? omaInfo.Value.DurationSec : Math.Max(1, track.Duration);
+                    string bitrate = !string.IsNullOrWhiteSpace(omaInfo?.Bitrate)
+                        ? omaInfo.Value.Bitrate!
+                        : (track.Bitrate > 0 ? $"{track.Bitrate} kbps" : item.Format);
                     IReadOnlyList<string>? lrc = TryLoadSidecarLrc(file);
                     Bitmap? coverBitmap = null;
 
@@ -898,10 +1118,7 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
             return Array.Empty<AudioTrackItem>();
         }
 
-        var supportedExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".oma"
-        };
+        var supportedExts = SupportedAudioExtensions;
 
         var results = new List<AudioTrackItem>();
         var folderCoverCache = new Dictionary<string, Bitmap?>(StringComparer.OrdinalIgnoreCase);
@@ -957,21 +1174,28 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
                 try
                 {
                     var info = new FileInfo(file);
+                    var omaInfo = TryInspectOmaFile(file);
                     var track = new Track(file);
-                    string format = ext.TrimStart('.').ToUpperInvariant();
-                    if (format == "OMA")
-                    {
-                        format = "ATRAC3+";
-                    }
+                    string format = !string.IsNullOrWhiteSpace(omaInfo?.Format)
+                        ? omaInfo.Value.Format!
+                        : ResolveDisplayFormatFromExtension(ext);
 
-                    string title = !string.IsNullOrWhiteSpace(track.Title)
-                        ? track.Title
-                        : Path.GetFileNameWithoutExtension(file);
-                    string artist = !string.IsNullOrWhiteSpace(track.Artist) ? track.Artist : "Unknown Artist";
-                    string album = !string.IsNullOrWhiteSpace(track.Album) ? track.Album : "Local Folder";
-                    int year = track.Year ?? 0;
-                    int durSec = Math.Max(1, track.Duration);
-                    string bitrate = track.Bitrate > 0 ? $"{track.Bitrate} kbps" : format;
+                    string title = !string.IsNullOrWhiteSpace(omaInfo?.Title)
+                        ? omaInfo.Value.Title!
+                        : (!string.IsNullOrWhiteSpace(track.Title)
+                            ? track.Title
+                            : Path.GetFileNameWithoutExtension(file));
+                    string artist = !string.IsNullOrWhiteSpace(omaInfo?.Artist)
+                        ? omaInfo.Value.Artist!
+                        : (!string.IsNullOrWhiteSpace(track.Artist) ? track.Artist : "Unknown Artist");
+                    string album = !string.IsNullOrWhiteSpace(omaInfo?.Album)
+                        ? omaInfo.Value.Album!
+                        : (!string.IsNullOrWhiteSpace(track.Album) ? track.Album : "Local Folder");
+                    int year = omaInfo is { Year: > 0 } ? omaInfo.Value.Year : (track.Year ?? 0);
+                    int durSec = omaInfo is { DurationSec: > 0 } ? omaInfo.Value.DurationSec : Math.Max(1, track.Duration);
+                    string bitrate = !string.IsNullOrWhiteSpace(omaInfo?.Bitrate)
+                        ? omaInfo.Value.Bitrate!
+                        : (track.Bitrate > 0 ? $"{track.Bitrate} kbps" : format);
                     IReadOnlyList<string>? lrc = TryLoadSidecarLrc(file);
                     Bitmap? coverBitmap = null;
 
@@ -1300,16 +1524,11 @@ public sealed partial class WalkmanBackendService : IAsyncDisposable
         bool result = false;
         try
         {
-            var audioExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".oma"
-            };
-
             string? sharedAlbum = null;
             int count = 0;
             foreach (string f in Directory.EnumerateFiles(dir, "*.*", SearchOption.TopDirectoryOnly))
             {
-                if (!audioExts.Contains(Path.GetExtension(f)))
+                if (!SupportedAudioExtensions.Contains(Path.GetExtension(f)))
                 {
                     continue;
                 }

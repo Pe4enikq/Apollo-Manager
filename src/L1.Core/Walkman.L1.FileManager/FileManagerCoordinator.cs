@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Threading.Channels;
 using Walkman.Contracts.Devices;
 using Walkman.Contracts.Engines;
@@ -443,6 +444,62 @@ public sealed class FileManagerCoordinator
         var claimedReplaceSlots = new HashSet<int>();
         int nextLinearId = (usedTrackIds.Count > 0 ? usedTrackIds.Max() : 0) + 1;
 
+        // Gated for v0.1.1b until COD-36 COM/ICV minting is completed in v0.2.0b;
+        // preserve Option 2 slot-recycling (freeSignedQueue + explicit ReplaceTrackId).
+        const bool enableScsiAutoMint = false;
+        int nonReplace0001Needed = requests.Count(r =>
+            !r.ReplaceTrackId.HasValue &&
+            ResolveRequiredEncryption(device, r.TargetCodec) == OmaEncryptionMode.MagicGateLsi_0x0001);
+        int slotDeficit = Math.Max(0, nonReplace0001Needed - freeSignedQueue.Count);
+        string? autoMintError = null;
+        if (enableScsiAutoMint && !allowUnsignedMaclist0ForTesting && hwIcvForSync is not null && slotDeficit > 0 && icvBridge is not null)
+        {
+            var bridgeCap = icvBridge.ProbeCapability();
+            if (bridgeCap is { IsSupportedOs: true, IsHostRuntimePresent: true, IsWorkerAvailable: true })
+            {
+                var mintRequests = new List<IcvMintTrackRequest>(slotDeficit);
+                int candidateId = nextLinearId;
+                for (int m = 0; m < slotDeficit; m++)
+                {
+                    while (usedTrackIds.Contains(candidateId))
+                    {
+                        candidateId++;
+                    }
+
+                    mintRequests.Add(new IcvMintTrackRequest(
+                        TrackId: candidateId,
+                        ContentId20: RandomNumberGenerator.GetBytes(20),
+                        PlaintextContentKey8: RandomNumberGenerator.GetBytes(8)));
+                    usedTrackIds.Add(candidateId);
+                    candidateId++;
+                }
+
+                nextLinearId = candidateId;
+                var mintResult = await icvBridge.MintAndCommitSlotsAsync(device, mintRequests, Array.Empty<int>(), ct).ConfigureAwait(false);
+                if (mintResult.Success && mintResult.MintedSlots is { Count: > 0 })
+                {
+                    if (mintResult.UpdatedMaclist0 is { Length: >= 32768 })
+                    {
+                        maclist0 = mintResult.UpdatedMaclist0;
+                        _slotPoolStore.UpsertTemplates(maclist0, mintResult.MintedSlots.Values);
+                    }
+
+                    maclistExists = true;
+                    icvZeroedForSync = false;
+                    foreach (var tpl in mintResult.MintedSlots.Values.OrderBy(t => t.TrackId))
+                    {
+                        verifiedTemplates[tpl.TrackId] = tpl;
+                        signedSlotIds.Add(tpl.TrackId);
+                        freeSignedQueue.Enqueue(tpl);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(mintResult.ErrorMessage))
+                {
+                    autoMintError = mintResult.ErrorMessage;
+                }
+            }
+        }
+
         bool ownStagingDir = string.IsNullOrWhiteSpace(stagingDirectory);
         string effectiveStagingDir = ownStagingDir
             ? Path.Combine(Path.GetTempPath(), $"apollo_sync_{Guid.NewGuid():N}")
@@ -503,10 +560,9 @@ public sealed class FileManagerCoordinator
                     }
                     else
                     {
-                        IcvBridgeCapability? bridgeCap = icvBridge?.ProbeCapability();
-                        string hint = bridgeCap is { IsSupportedOs: true, IsHostRuntimePresent: true, IsWorkerAvailable: true }
-                            ? "Windows 32-bit OpenMG ICV bridge detected, but automatic batch minting is not yet wired to direct SCSI writes."
-                            : (bridgeCap?.StatusMessage ?? "Delete an existing 0x0001 track to recycle its slot, specify ReplaceTrackId, or enable the optional Windows 32-bit ICV bridge worker.");
+                        string hint = !string.IsNullOrWhiteSpace(autoMintError)
+                            ? $"Automatic 0x0001 slot minting failed: {autoMintError}"
+                            : "Delete an existing 0x0001 track to recycle its pre-signed slot, specify ReplaceTrackId, or use MP3 (0xFFFE). (Direct SCSI slot minting is coming in v0.2.0b.)";
 
                         planningErrors.Add(
                             $"{Path.GetFileName(req.SourceFilePath)}: No free pre-signed OpenMG 0x0001 slot available ({signedSlotIds.Count} signed slot(s), 0 free) — refusing to mutate hardware-protected MACLIST0.DAT. {hint}");
@@ -614,10 +670,10 @@ public sealed class FileManagerCoordinator
 
                 addedTracks.Add(new AudioTrackDto(
                     TrackId: job.TrackId,
-                    Title: job.Tags.Title,
-                    Artist: job.Tags.Artist,
-                    Album: job.Tags.Album,
-                    Genre: job.Tags.Genre,
+                    Title: job.Tags.Title.Trim(),
+                    Artist: job.Tags.Artist.Trim(),
+                    Album: job.Tags.Album.Trim(),
+                    Genre: job.Tags.Genre.Trim(),
                     SortTitle: null,
                     TrackNumber: job.Tags.TrackNumber ?? 0,
                     Year: job.Tags.Year ?? 0,
@@ -629,7 +685,7 @@ public sealed class FileManagerCoordinator
                     FilePropertiesBigEndian: ((uint)job.Request.TargetCodec << 24) | res.CodecParams24,
                     LsiKeyring48: res.LsiKeyring48,
                     FileSizeBytes: omaBytes.Length,
-                    GroupName: job.Request.GroupName,
+                    GroupName: string.IsNullOrWhiteSpace(job.Request.GroupName) ? null : job.Request.GroupName.Trim(),
                     MaclistEntry8: res.MaclistEntry8,
                     TargetPositionIndex: job.Request.TargetPositionIndex));
             }
@@ -674,6 +730,90 @@ public sealed class FileManagerCoordinator
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Manually pre-allocates N fresh hardware-signed OpenMG 0x0001 slots via the optional Windows 32-bit COM ICV bridge,
+    /// saves the harvested templates into the local SlotPoolStore, and writes 2,144-byte dummy stubs to OMGAUDIO/10FXX/.
+    /// </summary>
+    public async Task<IcvCommitResult> AllocateMagicGateSlotsAsync(
+        ConnectedDeviceIdentity device,
+        int slotCount,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+        if (slotCount < 1 || slotCount > 512)
+        {
+            return new IcvCommitResult(false, null, null, null, "Slot allocation count must be between 1 and 512 (avoid over-allocating on large drives).");
+        }
+
+        var icvBridge = _orchestrator.TryResolveEngine<IOpenMgIcvBridge>();
+        if (icvBridge is null)
+        {
+            return new IcvCommitResult(false, null, null, null, "OpenMG ICV bridge service is unavailable.");
+        }
+
+        var cap = icvBridge.ProbeCapability();
+        if (!cap.IsSupportedOs || !cap.IsHostRuntimePresent || !cap.IsWorkerAvailable)
+        {
+            return new IcvCommitResult(false, null, null, null, cap.StatusMessage);
+        }
+
+        var transport = _orchestrator.ResolveRequiredEngine<ITransportDriver>();
+        var db = _orchestrator.ResolveRequiredEngine<IDatabaseEngine>();
+        var crypto = _orchestrator.TryResolveEngine<IOpenMgCryptoService>();
+
+        var snapshot = await db.ReadDatabaseFastAsync(device, ct).ConfigureAwait(false);
+        var usedIds = snapshot.Tracks.Select(t => t.TrackId).ToHashSet();
+
+        if (await transport.ExistsAsync(device, "OMGAUDIO/MACLIST0.DAT", ct).ConfigureAwait(false))
+        {
+            byte[] existingMaclist = await transport.ReadFileAsync(device, "OMGAUDIO/MACLIST0.DAT", ct).ConfigureAwait(false);
+            foreach (int id in EnumerateSignedSlotIds(existingMaclist))
+            {
+                usedIds.Add(id);
+            }
+        }
+
+        int nextId = (usedIds.Count > 0 ? usedIds.Max() : 0) + 1;
+        var mintRequests = new List<IcvMintTrackRequest>(slotCount);
+        for (int i = 0; i < slotCount; i++)
+        {
+            while (usedIds.Contains(nextId))
+            {
+                nextId++;
+            }
+
+            mintRequests.Add(new IcvMintTrackRequest(
+                TrackId: nextId,
+                ContentId20: RandomNumberGenerator.GetBytes(20),
+                PlaintextContentKey8: RandomNumberGenerator.GetBytes(8)));
+            usedIds.Add(nextId);
+            nextId++;
+        }
+
+        var result = await icvBridge.MintAndCommitSlotsAsync(device, mintRequests, Array.Empty<int>(), ct).ConfigureAwait(false);
+        if (!result.Success || result.MintedSlots is not { Count: > 0 })
+        {
+            return result;
+        }
+
+        if (result.UpdatedMaclist0 is { Length: >= 32768 })
+        {
+            _slotPoolStore.UpsertTemplates(result.UpdatedMaclist0, result.MintedSlots.Values);
+        }
+
+        if (crypto is not null)
+        {
+            foreach (var tpl in result.MintedSlots.Values)
+            {
+                string relPath = $"OMGAUDIO/10F{tpl.TrackId / 256:X2}/1{tpl.TrackId:X7}.OMA";
+                byte[] stub = crypto.BuildSignedSlotDummyStub(tpl);
+                await transport.WriteFileAtomicAsync(device, relPath, stub, ct).ConfigureAwait(false);
+            }
+        }
+
+        return result;
     }
 
     public async Task RenameCollectionAsync(

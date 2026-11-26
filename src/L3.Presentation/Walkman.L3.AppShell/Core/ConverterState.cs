@@ -3,6 +3,8 @@ namespace Walkman.L3.AppShell.Core;
 public enum TargetCodec
 {
     Atrac3Plus,
+    Atrac3,
+    Atrac1,
     Mp3,
     Aal,
     Aac = Aal,
@@ -13,9 +15,13 @@ public enum TargetCodec
 public enum BitrateOption
 {
     K352,
+    K292,
     K256,
     K192,
+    K132,
     K128,
+    K105,
+    K66,
     Lossless
 }
 
@@ -72,6 +78,8 @@ public static class ConverterStateLogic
     public static string GetCodecLabel(TargetCodec codec) => codec switch
     {
         TargetCodec.Atrac3Plus => "ATRAC3+",
+        TargetCodec.Atrac3 => "ATRAC3",
+        TargetCodec.Atrac1 => "ATRAC1 (SP)",
         TargetCodec.Mp3 => "MP3",
         TargetCodec.Aal => "AAL",
         TargetCodec.Flac => "FLAC",
@@ -81,7 +89,9 @@ public static class ConverterStateLogic
 
     public static string GetCodecHint(TargetCodec codec) => codec switch
     {
-        TargetCodec.Atrac3Plus => "Sony Walkman native",
+        TargetCodec.Atrac3Plus => "Sony Walkman native (48–352k)",
+        TargetCodec.Atrac3 => "Legacy Walkman / NetMD LP2/LP4 (66/105/132k)",
+        TargetCodec.Atrac1 => "Legacy MiniDisc / NetMD SP (292k .aea)",
         TargetCodec.Mp3 => "Universal playback",
         TargetCodec.Aal => "ATRAC Lossless (Import/Decode-Only)",
         TargetCodec.Flac => "Lossless archive",
@@ -92,6 +102,8 @@ public static class ConverterStateLogic
     public static string GetOutputExtension(TargetCodec codec) => codec switch
     {
         TargetCodec.Atrac3Plus => ".oma",
+        TargetCodec.Atrac3 => ".oma",
+        TargetCodec.Atrac1 => ".aea",
         TargetCodec.Mp3 => ".mp3",
         TargetCodec.Aal => ".oma",
         TargetCodec.Flac => ".flac",
@@ -102,9 +114,13 @@ public static class ConverterStateLogic
     public static string GetBitrateLabel(BitrateOption opt) => opt switch
     {
         BitrateOption.K352 => "352k",
+        BitrateOption.K292 => "292k (SP)",
         BitrateOption.K256 => "256k",
         BitrateOption.K192 => "192k",
+        BitrateOption.K132 => "132k (LP2)",
         BitrateOption.K128 => "128k",
+        BitrateOption.K105 => "105k",
+        BitrateOption.K66 => "66k (LP4)",
         BitrateOption.Lossless => "Lossless",
         _ => "256k"
     };
@@ -112,11 +128,24 @@ public static class ConverterStateLogic
     public static int GetBitrateKbps(BitrateOption opt) => opt switch
     {
         BitrateOption.K352 => 352,
+        BitrateOption.K292 => 292,
         BitrateOption.K256 => 256,
         BitrateOption.K192 => 192,
+        BitrateOption.K132 => 132,
         BitrateOption.K128 => 128,
+        BitrateOption.K105 => 105,
+        BitrateOption.K66 => 66,
         BitrateOption.Lossless => 1411,
         _ => 256
+    };
+
+    public static IReadOnlyList<BitrateOption> GetSupportedBitrates(TargetCodec codec) => codec switch
+    {
+        TargetCodec.Atrac3 => [BitrateOption.K132, BitrateOption.K105, BitrateOption.K66],
+        TargetCodec.Atrac1 => [BitrateOption.K292],
+        TargetCodec.Flac or TargetCodec.Wav or TargetCodec.Aal => [BitrateOption.Lossless],
+        TargetCodec.Mp3 => [BitrateOption.K256, BitrateOption.K192, BitrateOption.K128],
+        _ => [BitrateOption.K352, BitrateOption.K256, BitrateOption.K192, BitrateOption.K128]
     };
 
     public static string GetSampleRateLabel(SampleRateOption rate) => rate switch

@@ -354,8 +354,8 @@ public sealed class BlobMorphCanvasControl : Control
             }
         }
 
-        private static readonly SKMaskFilter MainShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, MedallionRadius * 0.18f);
-        private static readonly SKMaskFilter SatShadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, PlusRadius * 0.18f);
+        [ThreadStatic]
+        private static SKPoint[]? t_coordsScratch;
 
         private static void DrawRefractiveOrb(
             SKCanvas canvas,
@@ -369,18 +369,20 @@ public sealed class BlobMorphCanvasControl : Control
         {
             byte A(byte val) => (byte)Math.Round(val * opacity);
 
-            // Soft colored drop shadow
-            using (var shadow = new SKPaint
+            // Soft zero-blur radial caustic drop shadow (fast 60 FPS on CPU Skia)
+            float shadowR = radius * 1.24f;
+            SKColor shadowCol = isSatellite
+                ? new SKColor(126, 220, 74, A(68))
+                : new SKColor(92, 186, 248, A(62));
+            using (var shadowShader = SKShader.CreateRadialGradient(
+                new SKPoint(cx, cy + 6f),
+                shadowR,
+                [shadowCol, shadowCol.WithAlpha((byte)(shadowCol.Alpha / 3)), SKColors.Transparent],
+                [0f, 0.56f, 1f],
+                SKShaderTileMode.Clamp))
+            using (var shadow = new SKPaint { IsAntialias = true, IsDither = true, Shader = shadowShader })
             {
-                IsAntialias = true,
-                Color = isSatellite ? new SKColor(126, 220, 74, A(80)) : new SKColor(92, 186, 248, A(74)),
-                MaskFilter = isSatellite ? SatShadowBlur : MainShadowBlur
-            })
-            {
-                canvas.Save();
-                canvas.Translate(0, 6);
-                canvas.DrawPath(path, shadow);
-                canvas.Restore();
+                canvas.DrawCircle(cx, cy + 6f, shadowR, shadow);
             }
 
             SKColor[] gradColors = isSatellite
@@ -436,7 +438,7 @@ public sealed class BlobMorphCanvasControl : Control
         {
             const int points = 48;
             float effAmp = wobbleAmp * (1f - tightness);
-            var coords = new SKPoint[points];
+            var coords = t_coordsScratch ??= new SKPoint[points];
 
             for (int i = 0; i < points; i++)
             {

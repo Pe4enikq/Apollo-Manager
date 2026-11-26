@@ -49,7 +49,9 @@ public sealed record ScreenSpecification(
     bool ColumnStripeMangled,
     int MaxFileSizeBytes,
     int MaxUniqueBitmaps,
-    IReadOnlyList<string> TargetFolders);
+    IReadOnlyList<string> TargetFolders,
+    int? MaxFrameCount = null,
+    bool EnforceStrictFileSizeCap = true);
 
 /// <summary>
 /// Per-codec playback constraints and required EA3 protection mode on a device.

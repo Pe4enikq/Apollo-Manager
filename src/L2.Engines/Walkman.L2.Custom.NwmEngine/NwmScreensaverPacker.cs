@@ -41,6 +41,7 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
         ArgumentNullException.ThrowIfNull(targetScreen);
 
         var errors = new List<string>();
+        var warnings = new List<string>();
 
         if (project.Magic != targetScreen.Magic)
         {
@@ -70,6 +71,13 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
         if (project.BitsPerPixel != targetScreen.BitsPerPixel)
         {
             errors.Add($"Project bits-per-pixel ({project.BitsPerPixel}) does not match hardware ({targetScreen.BitsPerPixel} bpp).");
+        }
+
+        if (project.Magic == ScreensaverMagic.NwA1000_0xD301 &&
+            project.Thumbnail is not null &&
+            project.Thumbnail.Length != A1000ThumbBytes)
+        {
+            errors.Add($"0xD301 thumbnail must be {A1000ThumbBytes} bytes (got {project.Thumbnail.Length} bytes).");
         }
 
         int expectedLogicalBytes = (project.Width * project.Height * Math.Max(1, project.BitsPerPixel) + 7) / 8;
@@ -110,19 +118,37 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
             }
         }
 
+        int effectiveMaxBitmaps = targetScreen.Magic == ScreensaverMagic.NwE400_0xEC01
+            ? Math.Min(targetScreen.MaxUniqueBitmaps, 80)
+            : targetScreen.MaxUniqueBitmaps;
         int uniqueCount = Math.Max(1, canonicalHashes.Count);
-        if (uniqueCount > targetScreen.MaxUniqueBitmaps)
+        if (uniqueCount > effectiveMaxBitmaps)
         {
-            errors.Add($"Unique bitmap count ({uniqueCount}) exceeds hardware cap ({targetScreen.MaxUniqueBitmaps}).");
+            errors.Add($"Unique bitmap count ({uniqueCount}) exceeds hardware cap ({effectiveMaxBitmaps}).");
+        }
+
+        int? effectiveMaxFrames = targetScreen.MaxFrameCount ??
+            (targetScreen.Magic == ScreensaverMagic.NwE400_0xEC01 ? 200 : null);
+        if (effectiveMaxFrames.HasValue && project.Timeline.Count > effectiveMaxFrames.Value)
+        {
+            errors.Add($"Timeline frame count ({project.Timeline.Count}) exceeds hardware cap ({effectiveMaxFrames.Value}).");
         }
 
         int estimatedBytes = EstimateByteSize(project, uniqueCount, targetScreen.BytesPerFrame);
         if (estimatedBytes > targetScreen.MaxFileSizeBytes)
         {
-            errors.Add($"Estimated file size ({estimatedBytes:N0} B) exceeds hardware cap ({targetScreen.MaxFileSizeBytes:N0} B).");
+            string sizeMsg = $"Estimated file size ({estimatedBytes:N0} B) exceeds configured cap ({targetScreen.MaxFileSizeBytes:N0} B).";
+            if (targetScreen.EnforceStrictFileSizeCap)
+            {
+                errors.Add(sizeMsg);
+            }
+            else
+            {
+                warnings.Add(sizeMsg);
+            }
         }
 
-        return new NwmValidationResult(errors.Count == 0, estimatedBytes, errors);
+        return new NwmValidationResult(errors.Count == 0, estimatedBytes, errors, warnings);
     }
 
     public byte[] Pack(NwmProjectDto project)
@@ -152,7 +178,7 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
             {
                 if (hardwareChunks.Count > 255)
                 {
-                    throw new InvalidOperationException("Unique bitmap count exceeds uint8 .nwm index capacity (255).");
+                    throw new InvalidOperationException("Unique bitmap count exceeds uint8 .nwm index capacity (256).");
                 }
 
                 existingIdx = (byte)hardwareChunks.Count;
@@ -520,7 +546,9 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
 
     private static byte[] PackA1000(NwmProjectDto project, List<NwmFrameEntry> timeline, List<byte[]> bitmaps)
     {
-        byte[] thumbBytes = BuildA1000Thumbnail(bitmaps[timeline[0].BitmapIndex]);
+        byte[] thumbBytes = project.Thumbnail is { Length: A1000ThumbBytes } customThumb
+            ? customThumb
+            : BuildA1000Thumbnail(bitmaps[timeline[0].BitmapIndex]);
         int prePadTimelineEnd = 16 + A1000ThumbBytes + 6 + timeline.Count * 2;
         int timelinePad = (16 - (prePadTimelineEnd % 16)) % 16;
         int totalLen = prePadTimelineEnd + timelinePad + bitmaps.Count * A1000FrameBytes;
@@ -673,6 +701,12 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
     private static NwmProjectDto UnpackA1000(ReadOnlySpan<byte> data, ushort frameCount, ushort bitmapCount)
     {
         ushort dataAreaStart = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(8, 2));
+        if (data.Length < dataAreaStart + A1000ThumbBytes + 6)
+        {
+            throw new InvalidDataException("Truncated 0xD301 .nwm header reading thumbnail.");
+        }
+
+        byte[] thumbnail = data.Slice(dataAreaStart, A1000ThumbBytes).ToArray();
         int timelinePos = dataAreaStart + A1000ThumbBytes + 6;
         int timelineEnd = timelinePos + frameCount * 2;
         int bmpStart = timelineEnd + ((16 - (timelineEnd % 16)) % 16);
@@ -699,7 +733,8 @@ public sealed class NwmScreensaverPacker : IScreensaverPacker
             A1000Size,
             2,
             timeline,
-            bitmaps);
+            bitmaps,
+            Thumbnail: thumbnail);
     }
 
     private static List<NwmFrameEntry> ParseTimeline(ReadOnlySpan<byte> bytes, ushort bitmapCount)

@@ -188,7 +188,9 @@
                             Classes.playing="{Binding Track.IsNowPlaying, FallbackValue=False}"
                             Padding="4,7"
                             Cursor="Hand"
-                            PointerPressed="OnSourceRowPressed">
+                            PointerPressed="OnSourceRowPressed"
+                            PointerMoved="OnSourceRowPointerMoved"
+                            PointerReleased="OnSourceRowPointerReleased">
                       <Border.ContextMenu>
                         <ContextMenu>
                           <MenuItem Header="Play / Pause" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).PlayTrackFromMenuCommand}" CommandParameter="{Binding Track}" />

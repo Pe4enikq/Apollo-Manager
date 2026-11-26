@@ -145,22 +145,41 @@ public sealed class WindowsOpenMgIcvBridge : IOpenMgIcvBridge
         string stderr = await proc.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
         await proc.WaitForExitAsync(ct).ConfigureAwait(false);
 
-        if (proc.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
+        return ParseWorkerExitResult(proc.ExitCode, stdout, stderr);
+    }
+
+    internal static IcvCommitResult ParseWorkerExitResult(int exitCode, string stdout, string stderr)
+    {
+        WorkerCommitResponseDto? parsed = null;
+        if (!string.IsNullOrWhiteSpace(stdout))
         {
-            return new IcvCommitResult(
-                false,
-                null,
-                null,
-                null,
-                string.IsNullOrWhiteSpace(stderr)
-                    ? $"ICV bridge worker exited with code {proc.ExitCode}."
-                    : stderr.Trim());
+            try
+            {
+                parsed = JsonSerializer.Deserialize<WorkerCommitResponseDto>(
+                    stdout,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (JsonException)
+            {
+                parsed = null;
+            }
         }
 
-        var parsed = JsonSerializer.Deserialize<WorkerCommitResponseDto>(stdout);
-        if (parsed is null || !parsed.Success)
+        if (exitCode != 0 || parsed is null || !parsed.Success)
         {
-            return new IcvCommitResult(false, null, null, null, parsed?.ErrorMessage ?? "Worker reported commit failure.");
+            string? message = !string.IsNullOrWhiteSpace(parsed?.ErrorMessage) ? parsed.ErrorMessage.Trim() : null;
+            string? errTail = !string.IsNullOrWhiteSpace(stderr) ? stderr.Trim() : null;
+            string? combined = (message, errTail) switch
+            {
+                (not null, not null) => $"{message} ({errTail})",
+                (not null, null) => message,
+                (null, not null) => errTail,
+                _ => !string.IsNullOrWhiteSpace(stdout)
+                    ? stdout.Trim()
+                    : (exitCode != 0 ? $"ICV bridge worker exited with code {exitCode}." : "Worker reported commit failure.")
+            };
+
+            return new IcvCommitResult(false, null, null, null, combined);
         }
 
         var minted = new Dictionary<int, SignedMagicGateSlotTemplate>();
@@ -194,19 +213,36 @@ public sealed class WindowsOpenMgIcvBridge : IOpenMgIcvBridge
             return File.Exists(_customWorkerPath) ? Path.GetFullPath(_customWorkerPath) : null;
         }
 
-        string direct = Path.Combine(AppContext.BaseDirectory, WorkerExecutableName);
-        if (File.Exists(direct))
+        string[] directCandidates =
+        [
+            Path.Combine(AppContext.BaseDirectory, "tools", "openmg-icv-worker", WorkerExecutableName),
+            Path.Combine(AppContext.BaseDirectory, "tools", "icv-worker", WorkerExecutableName),
+            Path.Combine(AppContext.BaseDirectory, WorkerExecutableName)
+        ];
+        foreach (string direct in directCandidates)
         {
-            return direct;
+            if (File.Exists(direct))
+            {
+                return direct;
+            }
         }
 
         string? current = AppContext.BaseDirectory;
         for (int i = 0; i < 8 && current is not null; i++)
         {
-            string candidate = Path.Combine(current, "tools", "openmg-icv-worker", WorkerExecutableName);
-            if (File.Exists(candidate))
+            string[] candidates =
+            [
+                Path.Combine(current, "tools", "openmg-icv-worker", WorkerExecutableName),
+                Path.Combine(current, "tools", "icv-worker", WorkerExecutableName),
+                Path.Combine(current, "src", "Tools", "Walkman.OpenMgIcvWorker", "bin", "Release", "net8.0", WorkerExecutableName),
+                Path.Combine(current, "src", "Tools", "Walkman.OpenMgIcvWorker", "bin", "Debug", "net8.0", WorkerExecutableName)
+            ];
+            foreach (string candidate in candidates)
             {
-                return candidate;
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
             }
 
             current = Directory.GetParent(current)?.FullName;

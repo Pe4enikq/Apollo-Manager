@@ -181,7 +181,7 @@ public sealed class AudioPlaybackService : IDisposable
         _elapsedSeconds = 0;
 
         if (!string.IsNullOrWhiteSpace(track.SourceFilePath) &&
-            track.SourceFilePath.EndsWith(".oma", StringComparison.OrdinalIgnoreCase) &&
+            RequiresExternalStreamDecoder(track.SourceFilePath) &&
             OmaStreamResolver is not null)
         {
             _isDecodingOma = true;
@@ -343,13 +343,48 @@ public sealed class AudioPlaybackService : IDisposable
         UpdateSmtcState();
     }
 
+    private static bool RequiresExternalStreamDecoder(string path)
+    {
+        string ext = Path.GetExtension(path);
+        return ext.Equals(".oma", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".aa3", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".omg", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".at3", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".at9", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".aea", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".wv", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".ape", StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool TryStartRealPlayback(string? sourcePath)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) ||
             !File.Exists(sourcePath) ||
-            sourcePath.EndsWith(".oma", StringComparison.OrdinalIgnoreCase))
+            RequiresExternalStreamDecoder(sourcePath))
         {
             return false;
+        }
+
+        string ext = Path.GetExtension(sourcePath);
+        if (ext.Equals(".aiff", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".aif", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var aiffReader = new AiffFileReader(sourcePath);
+                var channel = new SampleChannel(aiffReader, true)
+                {
+                    Volume = EffectiveVolume
+                };
+                var session = new PlaybackSession(aiffReader, channel, ownedStream: null, desiredPlaying: true);
+                _session = session;
+                session.Play();
+                return true;
+            }
+            catch
+            {
+                StopAudioEngine();
+            }
         }
 
         try

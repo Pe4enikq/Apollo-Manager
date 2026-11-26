@@ -2,11 +2,11 @@
 ; Apollo Manager — Inno Setup 6 Installer Script (Windows x64)
 ; ==============================================================================
 ; Compile directly via ISCC.exe or automatically via codebase\build\package-win-x64.ps1:
-;   ISCC.exe /DMyAppVersion=0.1.0-beta.1 /DStageDir=..\dist\stage-win-x64 /DOutDir=..\dist ApolloManager.iss
+;   ISCC.exe /DMyAppVersion=0.1.1b /DStageDir=..\dist\stage-win-x64 /DOutDir=..\dist ApolloManager.iss
 ; ==============================================================================
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0-beta.1"
+  #define MyAppVersion "0.1.1b"
 #endif
 
 #ifndef StageDir

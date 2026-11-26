@@ -845,11 +845,12 @@ internal static class AeroSkiaHelpers
         bool isDark,
         Func<ModuleDescriptor, bool>? isActiveSelector = null,
         float glassOpacityBoost = 1f,
-        bool bakeRotatedLabel = false)
+        bool bakeRotatedLabel = false,
+        bool bakeHorizontalLabel = false)
     {
         var list = new List<CachedSectorItem>(sectors.Count);
         const float margin = 24f;
-        const float ss = 2f; // 2x supersampling for razor-sharp rotated text and smooth glass edges
+        const float ss = 2f; // 2x supersampling for razor-sharp text and smooth glass edges
 
         foreach (var sec in sectors)
         {
@@ -896,13 +897,13 @@ internal static class AeroSkiaHelpers
                 image = SKImage.FromBitmap(bmp);
             }
 
-            // Separate 2x supersampled rotated label image so it always renders ON TOP of neon hover glow
+            // Separate 2x supersampled label image so it always renders ON TOP of neon hover glow with zero per-frame CPU text shaping
             SKImage? labelImage = null;
             float labelOrigX = 0f;
             float labelOrigY = 0f;
             float labelLogW = 0f;
             float labelLogH = 0f;
-            if (bakeRotatedLabel)
+            if (bakeRotatedLabel || bakeHorizontalLabel)
             {
                 labelLogW = logicalW;
                 labelLogH = logicalH;
@@ -915,36 +916,87 @@ internal static class AeroSkiaHelpers
                     lCanvas.Scale(ss);
                     lCanvas.Translate(-labelOrigX, -labelOrigY);
 
-                    float textSize = sec.Module.IsLargeIcon ? 16.5f : 15.5f;
-                    lCanvas.Translate((float)sec.LabelX, (float)sec.LabelY);
-                    lCanvas.RotateDegrees((float)sec.MidAngleDeg);
+                    if (bakeRotatedLabel)
+                    {
+                        float textSize = sec.Module.IsLargeIcon ? 16.5f : 15.5f;
+                        lCanvas.Translate((float)sec.LabelX, (float)sec.LabelY);
+                        lCanvas.RotateDegrees((float)sec.MidAngleDeg);
 
-                    using (var haloPaint = new SKPaint
-                    {
-                        IsAntialias = true,
-                        TextSize = textSize,
-                        TextAlign = SKTextAlign.Center,
-                        Typeface = DisplayBold,
-                        SubpixelText = true,
-                        HintingLevel = SKPaintHinting.NoHinting,
-                        Color = isDark ? new SKColor(8, 14, 22, 160) : new SKColor(255, 255, 255, 205)
-                    })
-                    {
-                        lCanvas.DrawText(sec.Module.ShortTitle, 0f, 6.2f, haloPaint);
+                        using (var haloPaint = new SKPaint
+                        {
+                            IsAntialias = true,
+                            TextSize = textSize,
+                            TextAlign = SKTextAlign.Center,
+                            Typeface = DisplayBold,
+                            SubpixelText = true,
+                            HintingLevel = SKPaintHinting.NoHinting,
+                            Color = isDark ? new SKColor(8, 14, 22, 160) : new SKColor(255, 255, 255, 205)
+                        })
+                        {
+                            lCanvas.DrawText(sec.Module.ShortTitle, 0f, 6.2f, haloPaint);
+                        }
+
+                        using (var labelPaint = new SKPaint
+                        {
+                            IsAntialias = true,
+                            TextSize = textSize,
+                            TextAlign = SKTextAlign.Center,
+                            Typeface = DisplayBold,
+                            SubpixelText = true,
+                            HintingLevel = SKPaintHinting.NoHinting,
+                            Color = isDark ? new SKColor(244, 248, 252, 255) : new SKColor(15, 23, 42, 255)
+                        })
+                        {
+                            lCanvas.DrawText(sec.Module.ShortTitle, 0f, 5.2f, labelPaint);
+                        }
                     }
+                    else
+                    {
+                        float lx = (float)sec.LabelX;
+                        float ly = (float)sec.LabelY;
+                        float textSize = sec.Module.IsLargeIcon ? 16.5f : 15f;
 
-                    using (var labelPaint = new SKPaint
-                    {
-                        IsAntialias = true,
-                        TextSize = textSize,
-                        TextAlign = SKTextAlign.Center,
-                        Typeface = DisplayBold,
-                        SubpixelText = true,
-                        HintingLevel = SKPaintHinting.NoHinting,
-                        Color = isDark ? new SKColor(244, 248, 252, 255) : new SKColor(15, 23, 42, 255)
-                    })
-                    {
-                        lCanvas.DrawText(sec.Module.ShortTitle, 0f, 5.2f, labelPaint);
+                        using (var titleHalo = new SKPaint
+                        {
+                            IsAntialias = true,
+                            TextSize = textSize,
+                            TextAlign = SKTextAlign.Center,
+                            Typeface = DisplayBold,
+                            SubpixelText = true,
+                            HintingLevel = SKPaintHinting.NoHinting,
+                            Color = isDark ? new SKColor(8, 14, 22, 150) : new SKColor(255, 255, 255, 195)
+                        })
+                        {
+                            lCanvas.DrawText(sec.Module.Title, lx, ly + 3f, titleHalo);
+                        }
+
+                        using (var titlePaint = new SKPaint
+                        {
+                            IsAntialias = true,
+                            TextSize = textSize,
+                            TextAlign = SKTextAlign.Center,
+                            Typeface = DisplayBold,
+                            SubpixelText = true,
+                            HintingLevel = SKPaintHinting.NoHinting,
+                            Color = isDark ? new SKColor(244, 248, 252, 255) : new SKColor(15, 23, 42, 255)
+                        })
+                        {
+                            lCanvas.DrawText(sec.Module.Title, lx, ly + 2f, titlePaint);
+                        }
+
+                        using (var subPaint = new SKPaint
+                        {
+                            IsAntialias = true,
+                            TextSize = 12.5f,
+                            TextAlign = SKTextAlign.Center,
+                            Typeface = InterSemiBold,
+                            SubpixelText = true,
+                            HintingLevel = SKPaintHinting.NoHinting,
+                            Color = isDark ? new SKColor(203, 213, 225, 230) : new SKColor(58, 72, 92, 240)
+                        })
+                        {
+                            lCanvas.DrawText(sec.Module.Subtitle, lx, ly + 21f, subPaint);
+                        }
                     }
                 }
 
@@ -1009,11 +1061,24 @@ internal static class AeroSkiaHelpers
             using var imgPaint = new SKPaint
             {
                 IsAntialias = true,
-                FilterQuality = SKFilterQuality.High,
+                FilterQuality = SKFilterQuality.Medium,
                 Color = new SKColor(255, 255, 255, (byte)Math.Round(255 * Math.Clamp(opacity, 0f, 1f)))
             };
             var destRect = new SKRect(cached.OriginX, cached.OriginY, cached.OriginX + cached.LogicalWidth, cached.OriginY + cached.LogicalHeight);
             canvas.DrawImage(cached.GlassImage, destRect, imgPaint);
+        }
+
+        if (isActive)
+        {
+            using var activeFillPaint = new SKPaint
+            {
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+                Color = isDark
+                    ? new SKColor(138, 230, 82, (byte)Math.Round(24 * opacity))
+                    : new SKColor(168, 240, 118, (byte)Math.Round(34 * opacity))
+            };
+            canvas.DrawPath(cached.Path, activeFillPaint);
         }
 
         if (hoverT > 0.01f || isActive)
